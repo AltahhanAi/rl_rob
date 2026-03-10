@@ -276,7 +276,7 @@ class vtrueSarsaλ(vMDP):
 # ===================all *continuous-action policy-gradient control algorithms* must inherit this class============================
 
 '''
-overriding  π() in parent class MDP: 
+    overriding  π() in parent class MDP: 
     in MDP  π() returns probabilities according to an εgreedy     [ not used in discrete action update]
     in PG   π() returns probabilities according to a τsoftmax     [(1-π) used in discrete action update]
     in vPG  π() returns probabilities according to a Gaussian     [ not used in continuous action update]
@@ -284,65 +284,64 @@ overriding  π() in parent class MDP:
     Continuous action may have multiple components, each of which has a continuous value.
     The mean is calculated via μ_() via W, which assigns to each action component a separate 
     weight W[a], then perform W@s
-
-
 '''
-def vPG(MDP=vMDP):
-    class vPG(MDP):
-        def __init__(self, μ0=0, **kw):
-            super().__init__(**kw)
-            self.μ0 = μ0
-            self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
 
-            # Gaussian is the default policy to sample an action from for Policy Gradient methods
-            self.policy = self.Gaussian
-            
-        # a here represents the action component index, not an action value or an action index
-        # As we can see, this parametrisation for the μ means we are parametrising the policy.
-        def μ_π(self, s, a=None):
-            ϴ = self.ϴ if a is None else self.ϴ[a]
-            return ϴ@s
-        #------------------------------------- continuous policy 🧠------------------------------------
-        # samples a Gaussian policy π to obtain a continuous action value, or a vector of Gaussian action component values
-        def Gaussian(self, s):
-            μ = self.μ_π(s) # ϴ @ s
-            σ = self.env.σ  # comes from env, not learned for simplicity
-            
-            # sample an action value from the Gaussian
-            a = np.random.normal(μ, σ) # a = μ + σ * randn(*μ.shape)
-            a = np.clip(a, self.env.action_space.low[0], self.env.action_space.high[0])  # clip for safety          
-            return a
+class vPG(vMDP):
+    def __init__(self, μ0=0, **kw):
+        super().__init__(**kw)
+        self.μ0 = μ0
+        self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
+
+        # Gaussian is the default policy to sample an action from for Policy Gradient methods
+        self.policy = self.Gaussian
         
-        # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
-        def π(self, s, a):  # pr(a|s)
-            μ = self.μ_π(s) # ϴ @ s
-            σ = self.env.σ  # comes from env, not learned for simplicity
-            
-            return -0.5 * np.log(2 * np.pi * σ**2) - ((a - μ) ** 2) / (2 * σ**2)
+    # a here represents the action component index, not an action value or an action index
+    # As we can see, this parametrisation for the μ means we are parametrising the policy.
+    def μ_π(self, s, a=None):
+        ϴ = self.ϴ if a is None else self.ϴ[a]
+        return  np.atleast_1d(ϴ@s)
+    #------------------------------------- continuous policy 🧠------------------------------------
+    # samples a Gaussian policy π to obtain a continuous action value, or a vector of Gaussian action component values
+    def Gaussian(self, s):
+        μ = self.μ_π(s)# ϴ @ s
+        σ = self.env.σ  # comes from env, not learned for simplicity
         
-        # returns the log of π: mainly for reference and will not be called directly, instead we need ∇logπ 
-        def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
+        # sample an action value from the Gaussian
+        a = np.random.normal(μ, σ) # a = μ + σ * randn(*μ.shape)
+        a = np.clip(a, self.env.action_space.low, self.env.action_space.high)  # clip for safety          
+        return np.atleast_1d(a)
 
-            μ = self.μ_π(s)     # ϴ @ s
-            σ = self.env.σ      # comes from env, not learned for simplicity
+    
+    # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
+    def π(self, s, a):  # pr(a|s)
+        μ = self.μ_π(s) # ϴ @ s
+        σ = self.env.σ  # comes from env, not learned for simplicity
+        
+        p = (1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2))
+        return np.prod(p)
+    
+    # returns the log of π: mainly for reference and will not be called directly, instead we need ∇logπ 
+    def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
 
-            logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - 0.5*np.log(2*np.pi)
-            return np.sum(logπ)
+        μ = self.μ_π(s)     # ϴ @ s
+        σ = self.env.σ      # comes from env, not learned for simplicity
 
-        # we should have used ∇ , but Python does not like it
-        # gradient of the log of the policy π that appears in the **policy gradient theorem**
-        def Δlogπ(self, s, a):   # pr(a|s)
-            μ = self.μ_π(s)      # ϴ @ s
-            σ = self.env.σ       # comes from env, not learned for simplicity
+        logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - 0.5*np.log(2*np.pi)
+        return np.sum(logπ)
 
-            Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
-            return Δlogπ
-            
-    return vPG
-
+    # we should have used ∇ , but Python does not like it
+    # gradient of the log of the policy π that appears in the **policy gradient theorem**
+    def Δlogπ(self, s, a):   # pr(a|s)
+        μ = self.μ_π(s)      # ϴ @ s
+        σ = self.env.σ       # comes from env, not learned for simplicity
+        a = np.atleast_1d(a)
+        
+        Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
+        return Δlogπ
+        
 # -------------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning continuos actions------------------------
 # In the linear case, the actions are usually continuous
-class Actor_Critic(vPG()):
+class Actor_Critic(vPG):
     
     def __init__(self, α_critic, α_actor, **kw):
         self.α_critic = α_critic
@@ -355,6 +354,8 @@ class Actor_Critic(vPG()):
 
         self.w += α_critic*δ*self.ΔV(s)              # critic
         self.ϴ += α_actor *δ*self.Δlogπ(s,a)         # actor
+
+    
 # =========================a set of useful prediction comparisons =========================================
 
 def TDtiledwalk(ntilings):

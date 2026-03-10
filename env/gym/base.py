@@ -115,8 +115,8 @@ LunarLander = {
     'env_id': 'LunarLander-v3',
 
     # discretisation related.........................
-    'n_bins': (12, 12, 12, 12, 10, 2, 2),  
-    # (x, y, vx, vy, angle, left_leg, right_leg)
+    'n_bins': (12, 12, 12, 12, 10, 10, 2, 2),
+    # (x, y, vx, vy, angle, angular_velocity, left_leg, right_leg)
 
     'clip_ranges': (
         (-1.5, 1.5),   # x position
@@ -124,21 +124,42 @@ LunarLander = {
         (-2.0, 2.0),   # horizontal velocity
         (-2.0, 2.0),   # vertical velocity
         (-1.5, 1.5),   # angle
+        (-3.0, 3.0),   # angular velocity
         (0.0, 1.0),    # left leg contact
         (0.0, 1.0),    # right leg contact
     ),
 
-    'scale': (1.5, 1.5, 2.0, 2.0, 1.5, 1.0, 1.0),
+    'scale': (1.5, 1.5, 2.0, 2.0, 1.5, 3.0, 1.0, 1.0),
 
     # tile coding related..........................
-    'low': (-1.5, -0.2, -2.0, -2.0, -1.5, 0.0, 0.0),
-    'high': (1.5, 1.5, 2.0, 2.0, 1.5, 1.0, 1.0),
+    'low': (-1.5, -0.2, -2.0, -2.0, -1.5, -3.0, 0.0, 0.0),
+    'high': (1.5, 1.5, 2.0, 2.0, 1.5, 3.0, 1.0, 1.0),
 
-    'n_tiles': (8, 8, 8, 8, 6, 2, 2),
+    'n_tiles': (6, 6, 6, 6, 6, 6, 2, 2),
     'n_tilings': 8,
-    'hash_size': 16384,
+    'hash_size': 32768,
 }
 # -----------------------------------continuous actions and observation environments--------------------------------------
+
+MountainCarContinuous = {
+    'env_id': 'MountainCarContinuous-v0',
+
+    # discretisation related.........................
+    'n_bins': (18, 14),                 # (position, velocity)
+    'clip_ranges': ((-1.2, 0.6), (-0.07, 0.07)),
+    'scale': (1.2, 0.07),
+    
+    # tile coding related..........................
+    'low': (-1.2, -0.07),
+    'high': (0.6, 0.07),
+    'n_tiles': (12, 12),
+    'n_tilings': 8,
+    'hash_size': 4096,
+    
+    # actor-critic related..........................
+    'σ': 0.3
+}
+
 # Pendulum has cont actions, so Sarsa and Q-learning will not work directly 
 # unless we discretise the action space, but we can run actor-critic
 Pendulum = {
@@ -160,6 +181,35 @@ Pendulum = {
     'σ': 0.5
 
 }
+
+LunarLanderContinuous = {
+    'env_id': 'LunarLanderContinuous-v3',
+
+    'n_bins': (10, 10, 10, 10, 8, 8, 2, 2),
+    # (x, y, vx, vy, angle, angular_velocity, left_leg, right_leg)
+    'clip_ranges': (
+        (-1.5, 1.5),   # x position
+        (-0.2, 1.5),   # y height
+        (-2.0, 2.0),   # horizontal velocity
+        (-2.0, 2.0),   # vertical velocity
+        (-1.5, 1.5),   # angle
+        (-2.5, 2.5),   # angular velocity
+        (0.0, 1.0),    # left leg contact
+        (0.0, 1.0),    # right leg contact
+    ),
+
+    'scale': (1.5, 1.5, 2.0, 2.0, 1.5, 2.5, 1.0, 1.0),
+
+    'low': (-1.5, -0.2, -2.0, -2.0, -1.5, -2.5, 0.0, 0.0),
+    'high': (1.5, 1.5, 2.0, 2.0, 1.5, 2.5, 1.0, 1.0),
+
+    'n_tiles': (5, 5, 5, 5, 5, 5, 2, 2),
+    'n_tilings': 8,
+    'hash_size': 32768,
+
+    'σ': 0.15
+}
+
 
 HalfCheetah = {
     'env_id': 'HalfCheetah-v5',
