@@ -15,6 +15,8 @@ def argmaxes(Q, atol=1e-3):
        1-if Q is 1d array (individual states, returns indexes) 
        2-if Q is 2d array (multiple states, returns a mask)
     '''
+    if hasattr(Q, "detach"):   # torch tensor
+        Q = Q.detach().cpu().numpy()
     # better than doing exact equality np.where(Qs==Qs.max())
     argmaxes = np.isclose(Q, Q.max(axis=-1, keepdims=True), atol=atol, rtol=0.0)
     return np.where(argmaxes)[-1] if Q.ndim==1 else argmaxes*1 
