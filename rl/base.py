@@ -579,4 +579,4 @@ demoQ =    {'plotT':True, 'visual':True, 'underhood':'maxQ'}               # sui
 demoT =    {'plotT':True, 'visual':True}                                   # suitable for control
 demoR =    {'plotR':True, 'visual':True}                                   # suitable for control
 demoTR =   {'plotT':True, 'plotR':True, 'visual':True,'underhood':'maxQ'}  # suitable for control
-demoGame = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True }     # suitable for games
+demoGame = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True, save_final=True}     # suitable for games
