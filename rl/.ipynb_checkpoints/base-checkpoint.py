@@ -160,7 +160,7 @@ class MRP:
 
     #------------------------------------  online learning and interaction --------------------------------
     def interact(self, train=True, resume=False, save_every=None, save_final=None,
-                 overwrite=False, episodes=None, env=None, **kw):
+                 overwrite=True, episodes=None, env=None, **kw):
         if episodes is not None: self.episodes=episodes
         if env is not None: self.env = env
         if save_every is None: save_every = self.save_every
@@ -295,7 +295,7 @@ class MRP:
         self.env = None # exclude the env as it will cause issues when dealing with ROS
         if Path(self.self_path).exists() and not overwrite:
             print(f'Warning: {self.self_path} already exists and you set overwrite the pickl to False,'
-            'so we are existing without saving the pickl object.')
+                  f'so we are existing without saving the pickl object. If you want to save call save(overwrite=True)')
             self.env = env
             return
         try:
@@ -591,4 +591,4 @@ demoT =    {'plotT':True, 'visual':True}                                   # sui
 demoR =    {'plotR':True, 'visual':True}                                   # suitable for control
 demoTR =   {'plotT':True, 'plotR':True, 'visual':True,'underhood':'maxQ'}  # suitable for control
 demoGame = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True}     # suitable for games
-demoRobot = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True, 'save_final':True, 'overwrite':True, 'save_every':10} # suitable for robotics sim
+demoRobot = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True, 'save_final':True, 'save_every':10} # suitable for robotics sim
