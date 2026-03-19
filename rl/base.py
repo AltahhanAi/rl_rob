@@ -591,4 +591,4 @@ demoT =    {'plotT':True, 'visual':True}                                   # sui
 demoR =    {'plotR':True, 'visual':True}                                   # suitable for control
 demoTR =   {'plotT':True, 'plotR':True, 'visual':True,'underhood':'maxQ'}  # suitable for control
 demoGame = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True}     # suitable for games
-demoRobot = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True, 'save_final':True, 'save_every':10} # suitable for robotics sim
+demoRobot = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True, 'save_final':True, 'overwrite':True, 'save_every':10} # suitable for robotics sim
