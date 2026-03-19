@@ -300,7 +300,7 @@ class MRP:
             return
         try:
             with open(self.self_path, "wb") as f: pickle.dump(self, f)
-            # print(f"Object saved to {self.self_path}")
+            print(f"Object saved to {self.self_path}")
         except: print(f'could not save the file {self.self_path}')
         finally: self.env = env
         
