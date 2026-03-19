@@ -48,8 +48,9 @@ class MRP:
     def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
                  max_t=2000, seed=None, visual=False, underhood='',
-                 last=10, print_=False, self_path='experiment.pkl'):
-        # hyper parameters
+                 last=10, print_=False, self_path='experiment.pkl', save_every=None, save_final=False,
+                ):
+        # hyperparameters
         self.env = env
         self.γ = γ
         self.α = α # average methods(like MC1st) do not need this, but many other methods (like MCα) do
@@ -63,6 +64,8 @@ class MRP:
         self.last = last
         self.print_ = print_
         self.self_path = self_path  # path and name of the pickle file
+        self.save_every = save_every
+        self.save_final = save_final 
         
         # reference to two important functions
         self.policy = self.stationary
@@ -156,11 +159,13 @@ class MRP:
         return rn,sn, a,an, done
 
     #------------------------------------  online learning and interaction --------------------------------
-    def interact(self, train=True, resume=False, save_every=None, save_final=False,
+    def interact(self, train=True, resume=False, save_every=None, save_final=None,
                  overwrite=False, episodes=None, env=None, **kw):
         if episodes is not None: self.episodes=episodes
         if env is not None: self.env = env
-        if train and not resume: # train from scratch or resume training
+        if save_every is None: save_every = self.save_every
+        if save_final is None: save_final = self.save_final
+        if train and not resume:                               # train from scratch or resume training
             self.init_()
             self.init()                                        # user defined init() before all episodes
             self.init_metrics()
