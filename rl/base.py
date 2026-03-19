@@ -48,7 +48,7 @@ class MRP:
     def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
                  max_t=2000, seed=None, visual=False, underhood='',
-                 last=10, print_=False, self_path='experiment.pkl', save_every=None, save_final=False, overwrite=False,
+                 last=10, print_=False, save_file='experiment.pkl', save_every=None, save_final=False, overwrite=False,
                 ):
         # hyperparameters
         self.env = env
@@ -63,7 +63,7 @@ class MRP:
         self.underhood = underhood
         self.last = last
         self.print_ = print_
-        self.self_path = self_path  # path and name of the pickle file
+        self.save_file = save_file  # path and name of the pickle file
         self.save_every = save_every
         self.save_final = save_final
         self.overwrite = overwrite
@@ -295,26 +295,26 @@ class MRP:
     def selfsave(self, overwrite):
         env = self.env
         self.env = None # exclude the env as it will cause issues when dealing with ROS
-        if Path(self.self_path).exists() and not overwrite:
-            print(f'Warning: {self.self_path} already exists and overwrite=False, '
+        if Path(self.save_file).exists() and not overwrite:
+            print(f'Warning: {self.save_file} already exists and overwrite=False, '
                   f'so the called method existed without saving the pickl object. \n'
                   f'If you want to save, call save(overwrite=True), '
                   f'or pass overwrite=True to interact()')
             self.env = env
             return
         try:
-            with open(self.self_path, "wb") as f: pickle.dump(self, f)
-            print(f"Object saved to {self.self_path}")
-        except: print(f'could not save the file {self.self_path}')
+            with open(self.save_file, "wb") as f: pickle.dump(self, f)
+            print(f"Object saved to {self.save_file}")
+        except: print(f'could not save the file {self.save_file}')
         finally: self.env = env
         
     @classmethod
-    def selfload(cls, self_path=None):
-        if self_path is None: self_path = cls.self_path# use default path if it was not provide 
+    def selfload(cls, save_file=None):
+        if save_file is None: save_file = cls.save_file# use default path if it was not provide 
         try:
-            with open(self_path, "rb") as f: obj = pickle.load(f)
-            print(f'Object restored from {self_path}')
-        except: print(f'could not load the file {self_path}')
+            with open(save_file, "rb") as f: obj = pickle.load(f)
+            print(f'Object restored from {save_file}')
+        except: print(f'could not load the file {save_file}')
         return obj
     
     #---------------------------------------visualise ✍️----------------------------------------
