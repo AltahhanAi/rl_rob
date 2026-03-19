@@ -48,7 +48,7 @@ class MRP:
     def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
                  max_t=2000, seed=None, visual=False, underhood='',
-                 last=10, print_=False, self_path='experiment.pkl', save_every=None, save_final=False,
+                 last=10, print_=False, self_path='experiment.pkl', save_every=None, save_final=False, overwrite=False,
                 ):
         # hyperparameters
         self.env = env
@@ -65,7 +65,8 @@ class MRP:
         self.print_ = print_
         self.self_path = self_path  # path and name of the pickle file
         self.save_every = save_every
-        self.save_final = save_final 
+        self.save_final = save_final
+        self.overwrite = overwrite
         
         # reference to two important functions
         self.policy = self.stationary
@@ -165,6 +166,7 @@ class MRP:
         if env is not None: self.env = env
         if save_every is None: save_every = self.save_every
         if save_final is None: save_final = self.save_final
+        if overwrite is None: overwrite = self.overwrite
         if train and not resume:                               # train from scratch or resume training
             self.init_()
             self.init()                                        # user defined init() before all episodes
