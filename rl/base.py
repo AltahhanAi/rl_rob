@@ -177,51 +177,61 @@ class MRP:
             self.t_ = 0                                        # steps counter for all episodes
         if resume:
             self.extend_metrics()
-        # try:
+        try:
             #for self.ep in range(self.episodes):
-        while not self.stop_exp():
-            self.ep += 1
-            self.t  = -1                                    # steps counter for curr episode
-            self.Σr = 0
-            done = False
-            #print(self.ep)
-            # initial step
-            s,a = self.step_0()
-            self.step0()                                    # user defined init of each episode
-            # an episode is a set of steps, interact and learn from experience, online or offline.
-            while not self.stop_ep(done):
-                #print(self.t_)
+            while not self.stop_exp():
+                self.ep += 1
+                self.t  = -1                                    # steps counter for curr episode
+                self.Σr = 0
+                done = False
+                #print(self.ep)
+                # initial step
+                s,a = self.step_0()
+                self.step0()                                    # user defined init of each episode
+                # an episode is a set of steps, interact and learn from experience, online or offline.
+                while not self.stop_ep(done):
+                    #print(self.t_)
+    
+                    # take one step
+                    self.t += 1
+                    self.t_+= 1
+    
+                    rn,sn, a,an, done = self.step(s,a, self.t)  # takes a step in env and stores the trajectory if needed
+                    self.online(s, rn,sn, done, a,an) if train else None # to learn online, pass a one step trajectory
+    
+                    self.Σr += rn
+                    self.rn = rn
+                    s,a = sn,an
+    
+                    # render last view episodes, for games ep might>episodes
+                    if self.visual and self.episodes > self.ep >= self.episodes - self.view: self.render(**kw)
+    
+                # to learn offline and plot episode
+                self.metrics()
+                self.offline() if train else None
+                self.plot_ep()
+                
+                # saves object in a pickle file for retrieval (in case of a crash)
+                self.selfsave(overwrite) if save_every is not None and (self.ep + 1) % save_every==0 else None 
+                self.env.stop() if hasattr(self.env, 'stop') else None
 
-                # take one step
-                self.t += 1
-                self.t_+= 1
-
-                rn,sn, a,an, done = self.step(s,a, self.t)  # takes a step in env and store tarjectory if needed
-                self.online(s, rn,sn, done, a,an) if train else None # to learn online, pass a one step trajectory
-
-                self.Σr += rn
-                self.rn = rn
-                s,a = sn,an
-
-                # render last view episodes, for games ep might>episodes
-                if self.visual and self.episodes > self.ep >= self.episodes-self.view: self.render(**kw)
-
-            # to learn offline and plot episode
-            self.metrics()
-            self.offline() if train else None
-            self.plot_ep()
+        except KeyboardInterrupt:
+            print(
+                f"Training interrupted by user at "
+                f"episode={self.ep}, step={self.t}, total_steps={self.t_}"
+            )
+    
+        except Exception as e:
+            print(
+                f"Training failed with {type(e).__name__}: {e}\n"
+                f"Context: episode={self.ep}, step={self.t}, total_steps={self.t_}, "
+                f"state={s}, action={a}, next_state={sn}, reward={rn}, done={done}"
+            )
+            traceback.print_exc(); raise
+    
+        finally:
+            self.env.stop() if hasattr(self.env, "stop") else None
             
-            # saves object in a pickle file for retrieval (in case of a crash)
-            self.selfsave(overwrite) if save_every is not None and (ep + 1) % save_every==0 else None 
-            self.env.stop() if hasattr(self.env, 'stop') else None
-
-        # except:
-        # print(f"Either learning interrupted or an error occurred:, at state {s}")
-        # try: self.env.stop()
-        # finally:
-            # plot experience   
-            # self.plot_exp(**kw)
-        
         # plot experience   
         self.plot_exp(**kw)
         if save_final: self.selfsave(overwrite)
@@ -284,7 +294,8 @@ class MRP:
         env = self.env
         self.env = None # exclude the env as it will cause issues when dealing with ROS
         if Path(self.self_path).exists() and not overwrite:
-            print(f"Warning: {self.self_path} already exists and you set overwrite the pickl to False, so we are existing without saving the pickl object.")
+            print(f'Warning: {self.self_path} already exists and you set overwrite the pickl to False,'
+            'so we are existing without saving the pickl object.')
             self.env = env
             return
         try:
@@ -298,7 +309,7 @@ class MRP:
         if self_path is None: self_path = cls.self_path# use default path if it was not provide 
         try:
             with open(self_path, "rb") as f: obj = pickle.load(f)
-            print(f"Object restored from {self_path}")
+            print(f'Object restored from {self_path}')
         except: print(f'could not load the file {self_path}')
         return obj
     
