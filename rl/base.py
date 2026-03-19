@@ -295,7 +295,7 @@ class MRP:
         self.env = None # exclude the env as it will cause issues when dealing with ROS
         if Path(self.self_path).exists() and not overwrite:
             print(f'Warning: {self.self_path} already exists and overwrite=False, '
-                  f'so the called method existed without saving the pickl object. '
+                  f'so the called method existed without saving the pickl object. \n'
                   f'If you want to save, call save(overwrite=True), '
                   f'or pass overwrite=True to interact()')
             self.env = env
