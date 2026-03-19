@@ -160,7 +160,7 @@ class MRP:
 
     #------------------------------------  online learning and interaction --------------------------------
     def interact(self, train=True, resume=False, save_every=None, save_final=None,
-                 overwrite=True, episodes=None, env=None, **kw):
+                 overwrite=False, episodes=None, env=None, **kw):
         if episodes is not None: self.episodes=episodes
         if env is not None: self.env = env
         if save_every is None: save_every = self.save_every
