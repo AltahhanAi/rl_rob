@@ -43,8 +43,25 @@ class Grid(Grid):
         self.render_π(π=Q.argmax(1))
         
     # renders a deterministic or stochastic policy based on Q or direct probability using π
+    # def render_π(self, π=None, **kw):
+    #     π = np.ones((self.nS, self.nA )) if π is None else np.array(πTi[π]) # πTi[π] in case user passed '←' instead of indexes
+    #     if self.arrows is None: self.init_arrows()
+    #     X, Y = self.X, self.Y
+       
+    #     ind = np.array([s for s in range(self.nS) if not s in self.obstacles + self.goals + self.cliffs], dtype=np.uint32)
+    #     if ind.any()==False: return
+        
+    #     if len(π.shape)==1: # deterministic policy
+    #         U, Z = self.arrows[π].T
+    #         plt.quiver(X[ind]-.5,Y[ind]-.5,  U[ind],Z[ind],color='b')
+    #     elif len(π.shape)==2: # stochastic policy, shows multiple arrows if their probabilities are equal
+    #         argmaxesπ = self.argmaxeRows(π[ind])
+    #         for i in range(max(map(len, argmaxesπ))):
+    #             argmaxes = [argmax[min(len(argmax)-1,i)] for argmax in argmaxesπ]
+    #             U, Z = self.arrows[argmaxes].T
+    #             plt.quiver(X[ind]-.5,Y[ind]-.5,  U,Z,color='b')
     def render_π(self, π=None, **kw):
-        π = np.ones((self.nS, self.nA )) if π is None else np.array(πTi[π]) # πTi[π] in case user passed '←' instead of indexes
+        π = np.ones((self.nS, self.nA )) if π is None else np.array(πTi[π])
         if self.arrows is None: self.init_arrows()
         X, Y = self.X, self.Y
        
@@ -54,13 +71,21 @@ class Grid(Grid):
         if len(π.shape)==1: # deterministic policy
             U, Z = self.arrows[π].T
             plt.quiver(X[ind]-.5,Y[ind]-.5,  U[ind],Z[ind],color='b')
-        elif len(π.shape)==2: # stochastic policy, shows multiple arrows if their probabilities are equal
-            argmaxesπ = self.argmaxeRows(π[ind])
+    
+        elif len(π.shape)==2: # stochastic policy
+            π_valid = π[ind]
+            keep = ~np.all(np.isclose(π_valid, 0, atol=1e-12), axis=1)
+            if not np.any(keep): return
+    
+            ind = ind[keep]
+            π_valid = π_valid[keep]
+    
+            argmaxesπ = self.argmaxeRows(π_valid)
             for i in range(max(map(len, argmaxesπ))):
                 argmaxes = [argmax[min(len(argmax)-1,i)] for argmax in argmaxesπ]
                 U, Z = self.arrows[argmaxes].T
                 plt.quiver(X[ind]-.5,Y[ind]-.5,  U,Z,color='b')
-
+                
     # renders state value function
     def render_V(self, V=None, **kw):
         if V is None: V=np.ones(self.nS)
