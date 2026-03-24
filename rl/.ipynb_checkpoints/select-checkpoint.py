@@ -117,7 +117,7 @@ def progress(i, I, start, show=True, color=0):
 # ============================= compare algorithms =======================================
 '''
     This is a useful class to extensively compare different algorithms by running them
-    several times with different hyper parameters.
+    several times with different hyperparameters.
 '''
 class Compare:
     
@@ -166,7 +166,10 @@ class Compare:
             else: label_ = '%.4f'% hyperval
             setattr(algorithm, hypername, hyperval)
 
-            algoruns.interact(label= '%s %s=%s'%(label, hypername, label_), seed=self.seed, **kw)
+            # so passing seeds works for both Runs and Compare
+            algoruns.seed = self.seed
+            algoruns.interact(label='%s %s=%s'%(label, hypername, label_), **kw)
+            # algoruns.interact(label= '%s %s=%s'%(label, hypername, label_), seed=self.seed, **kw)
             
             self.Rs[h] = algoruns.Rs
             self.Ts[h] = algoruns.Ts
@@ -208,7 +211,7 @@ class Compare:
             plt.xlabel(hypername, fontsize=14)
             plt.legend()
             
-            # need to annotate if the hyper parameters are policy or rewards etc
+            # need to annotate if the hyperparameters are policy or rewards etc
             if ishyperNum: continue  
             bottom, top = plt.ylim()
             for i, hval in enumerate(HyperMeans):

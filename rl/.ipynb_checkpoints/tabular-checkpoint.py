@@ -181,15 +181,19 @@ class DQlearn(MDP()):
     def init(self):
         self.Q1 = self.Q
         self.Q2 = self.Q.copy()
-        
-    # We need to override the action-value function in our εgreedy policy
+    
+    # act according to the sum of both estimates
     def Q_(self, s=None, a=None):
-            return self.Q1[s] + self.Q2[s] if s is not None else self.Q1 + self.Q2
+        return self.Q1[s] + self.Q2[s] if s is not None else self.Q1 + self.Q2
 
-    def online(self, s, rn,sn, done, a,_): 
+    def online(self, s, rn, sn, done, a, _): 
         p = np.random.binomial(1, p=0.5)
-        if p:    self.Q1[s,a] += self.α*(rn + (1- done)*self.γ*self.Q2[sn].max() - self.Q1[s,a])
-        else:    self.Q2[s,a] += self.α*(rn + (1- done)*self.γ*self.Q1[sn].max() - self.Q2[s,a])
+        if p:
+            an = np.argmax(self.Q1[sn])   # select using Q1
+            self.Q1[s,a] += self.α*(rn + (1-done)*self.γ*self.Q2[sn,an] - self.Q1[s,a])  # evaluate using Q2
+        else:
+            an = np.argmax(self.Q2[sn])   # select using Q2
+            self.Q2[s,a] += self.α*(rn + (1-done)*self.γ*self.Q1[sn,an] - self.Q2[s,a])  # evaluate using Q1
 
 # -------------------- 🌖 online QV-learning: value control learning ------------------------------------
 class QVlearn(MDP()):# suitable for dense reward (intermediate steps rewards)
@@ -303,36 +307,36 @@ def compareonMaze(runs=100, α=.5):
     return SarsaMaze, XSarsaMaze, QlearnMaze, DQlearnMaze
 
 # ----------------------------------------------------------------------------------------------------------------------
-def figure_6_3(runs=10, Interim=True, Asymptotic=True, episodes=100,  label=''): #100
+def figure_6_3(runs=10, interim=True, asymptotic=True, episodes=100,  label=''): #100
     #plt.ylim(-150, -10)
     plt.xlim(.1,1)
     plt.title('Interim and Asymptotic performance')
     αs = np.arange(.1,1.05,.05)
 
+    
     algors = [ XSarsa,   Sarsa,   Qlearn]#,      DQlearn]
     labels = ['XSarsa', 'Sarsa', 'Qlearning']#, 'Double Q learning']
     frmts  = ['x',      '^',     's']#,         'd']
     
     env = cliffwalk()
-    Interim_, Asymptotic_ = [], []
-    # Interim perfromance......
-    if Interim:
+    Interim, Asymptotic = [], []
+    # Interim performance......
+    if interim:
         for g, algo in enumerate(algors):
             compare = Compare(algorithm=algo(env=env, episodes=episodes), runs=runs, hyper={'α':αs},
                              plotR=True).compare(label=labels[g]+' Interim'+label, frmt=frmts[g]+'--')
-            Interim_.append(compare)
+            Interim.append(compare)
     
-    # Asymptotic perfromance......
-    if Asymptotic:
+    # Asymptotic Performance......
+    if asymptotic:
         for g, algo in enumerate(algors):
             compare = Compare(algorithm=algo(env=env, episodes=episodes*10), runs=runs, hyper={'α':αs}, 
                              plotR=True).compare(label=labels[g]+' Asymptotic'+label, frmt=frmts[g]+'-')
-            Asymptotic_.append(compare)
+            Asymptotic.append(compare)
     
     plt.gcf().set_size_inches(10, 7)
-    return Interim_, Asymptotic_
+    return Interim, Asymptotic
     
-
 # ----------------------------------------------------------------------------------------------------------------------
 def nstepTD_MC_randwalk(env=randwalk(), algorithm=TDn, alglabel='TD'):
     plt.xlim(0, 100)

@@ -192,7 +192,7 @@ def maze(Grid=Grid, r=6, c=9, **kw):
     return Grid(gridsize=[r,c], s0=r//2*c, goals=[r*c-1], style='maze', **kw)
 
 def maze_large(Grid=Grid, **kw):
-    return maze(Grid=Grid, r=16, c=26, figsize=[25,4],**kw)
+    return maze(Grid=Grid, r=16, c=26, figsize=[25,4], **kw)
 
 def maze8(Grid=Grid, **kw): 
     return maze(Grid=Grid, nA=8, **kw)
