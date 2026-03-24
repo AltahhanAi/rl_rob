@@ -76,7 +76,9 @@ class Grid(Grid):
         X,Y  = self.X, self.Y
         fntsz, mrgn, clr = 12 - (5-self.nA) - int(self.cols/5), 0.4, 'b'
         for s in range(self.nS):
-            if s in self.obstacles: continue        
+            if s in self.obstacles: continue
+            # skip states whose action-values are all zero
+            if np.allclose(Q[s], 0): continue
             #  '→', '←', '↑', '↓'
             plt.text(X[s]-mrgn,Y[s]-mrgn, '←%.2f, '% Q[s,0], ha='right', va='bottom', fontsize=fntsz, color=clr) 
             plt.text(X[s]-mrgn,Y[s]-mrgn, '%.2f→  '% Q[s,1], ha='left' , va='bottom', fontsize=fntsz, color=clr)

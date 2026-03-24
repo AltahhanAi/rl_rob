@@ -338,11 +338,10 @@ def figure_6_3(runs=10, interim=True, asymptotic=True, episodes=100,  label=''):
     return Interim, Asymptotic
     
 # ----------------------------------------------------------------------------------------------------------------------
-def nstepTD_MC_randwalk(env=randwalk(), algorithm=TDn, alglabel='TD'):
+def nstepTD_MC_randwalk(env=randwalk(), algorithm=TDn, n=5, alglabel='TD'):
     plt.xlim(0, 100)
     plt.ylim(0, .25)
     plt.title('Empirical RMS error, averaged over states')
-    n=5
     
     for α in [.05, .1, .15]:
         TDαs = Runs(algorithm=algorithm(env=env, n=1,α=α, v0=.5),  runs=100, plotE=True).interact(label='%s α= %.2f'%(alglabel,α), frmt='.-')
