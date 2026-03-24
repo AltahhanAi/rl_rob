@@ -565,8 +565,9 @@ def MDP(MRP=MRP):
         # override the render function
         def render(self, rn=None, label='', **kw):
             if rn is None: rn=self.rn
-            param = {'Q':self.Q_()} if 'Q' in self.underhood else {} # 'maxQ' or 'Q'
-            param = {'π':self.Q_()} if 'π' in self.underhood else {} # 'maxQ' or 'Q'
+            param = {}
+            if 'Q' in self.underhood: param = {'Q':self.Q_()}  # 'maxQ' or 'Q'
+            if 'π' in self.underhood: param = {'π':self.Q_()}  # 'π'
             
             self.env.render(**param, 
                             label=label+' reward=%d, t=%d, ep=%d'%(rn, self.t+1, self.ep+1), 
@@ -620,7 +621,8 @@ def PG(MDP=MDP(MRP)):
 
 # =======================handy quick setting depending on the problem(prediction or control)==================
 demoE =    {'plotE':True, 'plotV':True, 'animate':True}                    # suitable for prediction
-demoQ =    {'plotT':True, 'visual':True, 'underhood':'π'}               # suitable for control, only for Grid stuff
+demoQ =    {'plotT':True, 'visual':True, 'underhood':'maxQ'}               # suitable for control, only for Grid stuff
+demoπ =    {'plotT':True, 'visual':True, 'underhood':'π'}                  # suitable for control, only for Grid stuff
 demoT =    {'plotT':True, 'visual':True}                                   # suitable for control
 demoR =    {'plotR':True, 'visual':True}                                   # suitable for control
 demoTR =   {'plotT':True, 'plotR':True, 'visual':True,'underhood':'maxQ'}  # suitable for control
