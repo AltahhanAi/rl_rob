@@ -41,6 +41,7 @@ class Grid(Grid):
 
     def render_maxQ(self, Q, **kw):
         self.render_π(π=Q.argmax(1))
+        # self.render_π(π=Q.argmax(1), Q=Q, **kw)
         
     # renders a deterministic or stochastic policy based on Q or direct probability using π
     # def render_π(self, π=None, **kw):
