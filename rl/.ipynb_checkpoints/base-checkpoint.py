@@ -48,7 +48,7 @@ class MRP:
     def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
                  max_t=2000, seed=None, visual=False, underhood='',
-                 last=10, print_=False, self_path='experiment.pkl', save_every=None, save_final=False, overwrite=False,
+                 last=10, print_=False, file_name='experiment.pkl', save_every=None, save_final=False, overwrite=False,
                 ):
         # hyperparameters
         self.env = env
@@ -63,7 +63,7 @@ class MRP:
         self.underhood = underhood
         self.last = last
         self.print_ = print_
-        self.self_path = self_path  # path and name of the pickle file
+        self.file_name = file_name  # path and name of the pickle file
         self.save_every = save_every
         self.save_final = save_final
         self.overwrite = overwrite
@@ -295,26 +295,26 @@ class MRP:
     def selfsave(self, overwrite):
         env = self.env
         self.env = None # exclude the env as it will cause issues when dealing with ROS
-        if Path(self.self_path).exists() and not overwrite:
-            print(f'Warning: {self.self_path} already exists and overwrite=False, '
+        if Path(self.file_name).exists() and not overwrite:
+            print(f'Warning: {self.file_name} already exists and overwrite=False, '
                   f'so the called method existed without saving the pickl object. \n'
                   f'If you want to save, call save(overwrite=True), '
                   f'or pass overwrite=True to interact()')
             self.env = env
             return
         try:
-            with open(self.self_path, "wb") as f: pickle.dump(self, f)
-            print(f"Object saved to {self.self_path}")
-        except: print(f'could not save the file {self.self_path}')
+            with open(self.file_name, "wb") as f: pickle.dump(self, f)
+            print(f"Object saved to {self.file_name}")
+        except: print(f'could not save the file {self.file_name}')
         finally: self.env = env
         
     @classmethod
-    def selfload(cls, self_path=None):
-        if self_path is None: self_path = cls.self_path# use default path if it was not provide 
+    def selfload(cls, file_name=None):
+        if file_name is None: file_name = cls.file_name# use default path if it was not provide 
         try:
-            with open(self_path, "rb") as f: obj = pickle.load(f)
-            print(f'Object restored from {self_path}')
-        except: print(f'could not load the file {self_path}')
+            with open(file_name, "rb") as f: obj = pickle.load(f)
+            print(f'Object restored from {file_name}')
+        except: print(f'could not load the file {file_name}')
         return obj
     
     #---------------------------------------visualise ✍️----------------------------------------
@@ -453,6 +453,33 @@ class MRP(MRP):
             Gn = self.γ*Gn + self.r[t]
         return Gn 
 
+
+# =======================================Batch MRP: stores trajectories for all past episodes================
+class MRP_batch(MRP):
+    
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.store = True # store the full experience
+
+    # we will redefine the allocate to store the full experience instead of only the latest episode
+    def allocate(self): 
+        self.r = np.zeros((self.max_t, self.episodes))
+        self.s = np.ones ((self.max_t, self.episodes), dtype=np.uint32) *(self.env.nS+10)  
+        self.a = np.zeros((self.max_t, self.episodes), dtype=np.uint32)  # actions and states are indices        
+        self.done = np.zeros((self.max_t, self.episodes), dtype=bool)
+        
+    def store_(self, s=None,a=None,rn=None,sn=None,an=None, done=None, t=0):
+        # store one trajectory(sarsa) in the rigth episode buffer
+        if s  is not None: self.s[t, self.ep] = s
+        if a  is not None: self.a[t, self.ep] = a
+        if rn is not None: self.r[t+1, self.ep] = rn
+        if sn is not None: self.s[t+1, self.ep] = sn
+        if an is not None: self.a[t+1, self.ep] = an
+        if done is not None: self.done[t+1, self.ep] = done
+
+    # returns the agent's trace from the latest episode buffer
+    def trace(self):
+            return self.s[:self.t+1, self.ep]
 # =======================================Base class for control===============================================
 '''
     all other *value control algorithms* must inherit this class

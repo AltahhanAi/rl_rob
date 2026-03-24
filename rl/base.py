@@ -453,6 +453,33 @@ class MRP(MRP):
             Gn = self.γ*Gn + self.r[t]
         return Gn 
 
+
+# =======================================Batch MRP: stores trajectories for all past episodes================
+class MRP_batch(MRP):
+    
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.store = True # store the full experience
+
+    # we will redefine the allocate to store the full experience instead of only the latest episode
+    def allocate(self): 
+        self.r = np.zeros((self.max_t, self.episodes))
+        self.s = np.ones ((self.max_t, self.episodes), dtype=np.uint32) *(self.env.nS+10)  
+        self.a = np.zeros((self.max_t, self.episodes), dtype=np.uint32)  # actions and states are indices        
+        self.done = np.zeros((self.max_t, self.episodes), dtype=bool)
+        
+    def store_(self, s=None,a=None,rn=None,sn=None,an=None, done=None, t=0):
+        # store one trajectory(sarsa) in the rigth episode buffer
+        if s  is not None: self.s[t, self.ep] = s
+        if a  is not None: self.a[t, self.ep] = a
+        if rn is not None: self.r[t+1, self.ep] = rn
+        if sn is not None: self.s[t+1, self.ep] = sn
+        if an is not None: self.a[t+1, self.ep] = an
+        if done is not None: self.done[t+1, self.ep] = done
+
+    # returns the agent's trace from the latest episode buffer
+    def trace(self):
+            return self.s[:self.t+1, self.ep]
 # =======================================Base class for control===============================================
 '''
     all other *value control algorithms* must inherit this class
