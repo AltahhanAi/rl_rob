@@ -564,7 +564,9 @@ def MDP(MRP=MRP):
         # override the render function
         def render(self, rn=None, label='', **kw):
             if rn is None: rn=self.rn
-            param = {'Q':self.Q_()} if 'Q' in self.underhood else {} # 'maxQ' or 'Q'
+            # param = {'Q':self.Q_()} if 'Q' in self.underhood else {} # 'maxQ' or 'Q'
+            param = {'π':self.Q_()} if 'π' in self.underhood else {} # 'maxQ' or 'Q'
+            
             self.env.render(**param, 
                             label=label+' reward=%d, t=%d, ep=%d'%(rn, self.t+1, self.ep+1), 
                             underhood=self.underhood, **kw)
