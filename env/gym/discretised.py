@@ -84,7 +84,7 @@ class GymDiscreteS(GymCont, Discretise):
 '''
 This class returns a vector for each state observation.
 '''
-class vGymDiscretS(GymDiscreteS):
+class vGymDiscreteS(GymDiscreteS):
 
     def __init__(self, env_id, make=gym.make, **kw):
         super().__init__(env_id=env_id, make=make, **kw)
