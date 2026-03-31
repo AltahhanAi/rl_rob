@@ -228,6 +228,7 @@ class MRP:
                 f"Training interrupted by user at "
                 f"episode={self.ep}, step={self.t}, total_steps={self.t_}"
             )
+            raise
     
         except Exception as e:
             print(
