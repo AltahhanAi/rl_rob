@@ -2,52 +2,104 @@ from env.gym.base import *
 
 # ========================================= Tile Coder Class ==========================================
 
+# class TileCoder:
+#     """
+#     Sparse tile coding with hashing.
+#     Returns a list of active feature indices (length = n_tilings).
+#     """
+#     def __init__(self, low, high, n_tiles=(8,8,8,8), n_tilings=8, hash_size=4096, seed=0, **kw):
+#         self.low = np.asarray(low)
+#         self.high = np.asarray(high)
+#         self.n_tiles = np.asarray(n_tiles, dtype=np.int32) # tiles per dim
+#         self.n_tilings = int(n_tilings)                    # how many active features per state
+#         self.hash_size = int(hash_size)                    # number of features
+
+#         assert self.low.shape == self.high.shape
+#         self.d = self.low.size
+
+#         # tile width per dimension
+#         self.width = (self.high - self.low) / self.n_tiles
+
+#         rng = np.random.default_rng(seed)
+#         # deterministic-ish offsets: evenly spaced fractions + tiny jitter
+#         base = (np.arange(self.n_tilings) / self.n_tilings)[:, None]
+#         self.offsets = (base * self.width)[..., :self.d]  # (n_tilings, d)
+#         self.offsets += (rng.uniform(-1e-3, 1e-3, size=self.offsets.shape)).astype(np.float32)
+
+#     def _hash(self, tiling, coords):
+#         # coords is int array of length d
+#         h = tiling
+#         for c in coords:
+#             h = (h * 1315423911) ^ (int(c) + 0x9e3779b9 + (h << 6) + (h >> 2))
+#         return int(h % self.hash_size)
+
+#     # returns active_features indexes
+#     def idx(self, obs): 
+#         # clip to bounds
+#         obs = np.clip(obs, self.low, self.high)
+#         idx = [] # features indexes
+#         for t in range(self.n_tilings):
+#             coords = (obs + self.offsets[t] - self.low) // self.width
+#             idx.append(self._hash(t, coords))
+#         return np.array(idx, dtype=np.uint32)
+
+#     def tilecode(self, obs):            
+#         φ = np.zeros(self.hash_size)      # dense feature vector
+#         φ[self.idx(obs) ] = 1.0           # multi-hot, self.idx(obs) length n_tilings
+#         return φ
+
 class TileCoder:
     """
-    Sparse tile coding with hashing.
+    Sparse tile coding with hashing — vectorised across tilings.
     Returns a list of active feature indices (length = n_tilings).
     """
     def __init__(self, low, high, n_tiles=(8,8,8,8), n_tilings=8, hash_size=4096, seed=0, **kw):
-        self.low = np.asarray(low)
-        self.high = np.asarray(high)
-        self.n_tiles = np.asarray(n_tiles, dtype=np.int32) # tiles per dim
-        self.n_tilings = int(n_tilings)                    # how many active features per state
-        self.hash_size = int(hash_size)                    # number of features
-
+        self.low       = np.asarray(low,     dtype=np.float32)
+        self.high      = np.asarray(high,    dtype=np.float32)
+        self.n_tiles   = np.asarray(n_tiles, dtype=np.int32)
+        self.n_tilings = int(n_tilings)
+        self.hash_size = int(hash_size)
         assert self.low.shape == self.high.shape
         self.d = self.low.size
 
-        # tile width per dimension
-        self.width = (self.high - self.low) / self.n_tiles
+        self.width = (self.high - self.low) / self.n_tiles  # (d,)
 
-        rng = np.random.default_rng(seed)
-        # deterministic-ish offsets: evenly spaced fractions + tiny jitter
-        base = (np.arange(self.n_tilings) / self.n_tilings)[:, None]
-        self.offsets = (base * self.width)[..., :self.d]  # (n_tilings, d)
-        self.offsets += (rng.uniform(-1e-3, 1e-3, size=self.offsets.shape)).astype(np.float32)
+        # rng  = np.random.default_rng(seed)
+        base = (np.arange(self.n_tilings, dtype=np.float32) / self.n_tilings)[:, None]
+        self.offsets = (base * self.width).astype(np.float32)          # (n_tilings, d)
+        # self.offsets += rng.uniform(-1e-3, 1e-3, size=self.offsets.shape).astype(np.float32)
+        self.offsets += np.random.uniform(-1e-3, 1e-3, size=self.offsets.shape).astype(np.float32)
 
-    def _hash(self, tiling, coords):
-        # coords is int array of length d
-        h = tiling
-        for c in coords:
-            h = (h * 1315423911) ^ (int(c) + 0x9e3779b9 + (h << 6) + (h >> 2))
-        return int(h % self.hash_size)
+        # Precompute per-tiling seeds for the vectorised hash (uint32, wraps naturally)
+        self._tiling_seeds = np.arange(self.n_tilings, dtype=np.uint32)
 
-    # returns active_features indexes
-    def idx(self, obs): 
-        # clip to bounds
-        obs = np.clip(obs, self.low, self.high)
-        idx = [] # features indexes
-        for t in range(self.n_tilings):
-            coords = (obs + self.offsets[t] - self.low) // self.width
-            idx.append(self._hash(t, coords))
-        return np.array(idx, dtype=np.uint32)
+    def _hash_all(self, coords_all):
+        """
+        Vectorised hash across all tilings at once.
+        coords_all : (n_tilings, d)  int32 tile coordinates
+        returns    : (n_tilings,)    uint32 feature indices
+        """
+        h = self._tiling_seeds.copy()                   # (n_tilings,)  uint32
+        for dim in range(self.d):                       # loop over dims, not tilings
+            c = coords_all[:, dim].astype(np.uint32)
+            h = np.bitwise_xor(
+                    h * np.uint32(1315423911),
+                    c + np.uint32(0x9e3779b9) + (h << np.uint32(6)) + (h >> np.uint32(2))
+                )
+        return h % np.uint32(self.hash_size)
 
-    def tilecode(self, obs):            
-        φ = np.zeros(self.hash_size)      # dense feature vector
-        φ[self.idx(obs) ] = 1.0           # multi-hot, self.idx(obs) length n_tilings
-        return φ
+    def idx(self, obs):
+        obs = np.clip(obs, self.low, self.high).astype(np.float32)
+        # All tilings at once: (n_tilings, d)
+        shifted = obs[None, :] + self.offsets - self.low[None, :]
+        coords  = (shifted // self.width).astype(np.int32)
+        return self._hash_all(coords).astype(np.uint32)
 
+    def tilecode(self, obs):
+        phi = np.zeros(self.hash_size, dtype=np.float32)
+        phi[self.idx(obs)] = 1.0
+        return phi
+        
 # ========================================= Gym Env Tile Coded Class ==========================================
 class GymTiled(GymCont, TileCoder):
     def __init__(self, env_id, make=gym.make, **kw):
