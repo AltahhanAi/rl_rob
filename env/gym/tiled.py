@@ -53,6 +53,7 @@ class GymTiled(GymCont, TileCoder):
     def __init__(self, env_id, make=gym.make, **kw):
         GymCont.__init__(self, env_id=env_id, make=make)
         if 'σ' in kw: self.σ = kw['σ']
+        
         TileCoder.__init__(self, **kw)
         
 
@@ -67,6 +68,10 @@ class GymTiled(GymCont, TileCoder):
     def _proc_obs(self, obs):
         obs = self._proc_obs_(obs)
         return self.tilecode(obs)
+    
+    def s_(self):
+        return self._proc_obs(self.obs) # for compatibility
+
 
     # Freeway needs a specific processing
     def _proc_obs_Freeway(self, obs):

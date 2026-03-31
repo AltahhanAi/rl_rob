@@ -243,7 +243,8 @@ def TD_MC_randwalk(env=randwalk(), alg1=TDf, alg2=MC):
     for α in [.01, .02, .03, .04]:
         MCs = Runs(algorithm=alg2(env=env, α=α, v0=.5), runs=100, plotE=True).interact(label='MC α= %.2f'%α, frmt='--')
 
-def example_6_2(**kw): return TD_MC_randwalk(**kw)
+def example_6_2(**kw): 
+    return TD_MC_randwalk(**kw)
 
 # ----------------------------------------------------------------------------------------------------------------------
 def figure_6_2():

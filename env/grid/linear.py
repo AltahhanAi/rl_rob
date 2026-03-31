@@ -13,22 +13,43 @@ class vGrid(Grid):
         super().__init__( **kw)
         # num of features to encode a state
         self.nF = nF if nF is not None else self.nS 
-        self.S = None
+        # del self.S_ # to avoid confusion as S_ returned a list, now it will return a matrix
         
     # vectorised state representation: one-hot encoding (1 component represents a state)
+    # s_ now returns a vector, not one value/index
     def s_(self):
         φ = np.zeros(self.nF)
         φ[self.s] = 1 
         return φ
-
+    
     def S_(self):
-        if self.S is not None: return self.S
-        # S is a *matrix* that represents the full state space; this is only needed for Grid visualisation
         sc = self.s  # store current state to be retrieved later
-        for self.s in range(self.nS): 
-            self.S = np.c_[self.S, self.s_()] if self.s else self.s_()
+        for self.s in range(self.nS):
+            S_ = np.c_[S_, self.s_()] if self.s > 0 else self.s_()
         self.s = sc 
-        return self.S
+        return S_
+        
+# class vGrid(Grid):
+#     def __init__(self, nF=None, **kw):
+#         super().__init__( **kw)
+#         # num of features to encode a state
+#         self.nF = nF if nF is not None else self.nS 
+#         self.S = None
+        
+#     # vectorised state representation: one-hot encoding (1 component represents a state)
+#     def s_(self):
+#         φ = np.zeros(self.nF)
+#         φ[self.s] = 1 
+#         return φ
+
+#     def S_(self):
+#         if self.S is not None: return self.S
+#         # S is a *matrix* that represents the full state space; this is only needed for Grid visualisation
+#         sc = self.s  # store current state to be retrieved later
+#         for self.s in range(self.nS): 
+#             self.S = np.c_[self.S, self.s_()] if self.s else self.s_()
+#         self.s = sc 
+#         return self.S
 
 # ============================== aggregated Grid ====================================================
 class aggGrid(vGrid):

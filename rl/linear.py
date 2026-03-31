@@ -7,7 +7,7 @@
     then make other rl algorithms inherit from them as needed.
 '''
 
-from rl.base import *
+from rl.tabular import *
 from env.grid.linear import *
 from env.gym.tiled import *
 
@@ -16,33 +16,27 @@ from math import floor
 class vMRP(MRP):
         
     # set up the weights, must be done whenever we train
-    def init(self):
+    def init_(self):
+        self.V_ = self.V
         self.w = np.ones(self.env.nF)*self.v0
-        self.V = self.V_ # this allows us to use a very similar syntax for our updates
-        self.S_= None
-        
+    
     #-------------------------------------------buffer related-------------------------------------
     # allocate a suitable buffer
     def allocate(self): 
         super().allocate()
-        self.s = np.ones ((self.max_t, self.env.nF)) *(self.env.nS+10)    
+        self.s = np.ones ((self.max_t, self.env.nF), dtype=np.uint32) *(self.env.nS+10)    
     
     #---------------------------------------- retrieve Vs ------------------------------------------
-    def V_(self, s=None):
+    def V(self, s=None):
         return self.w.dot(s) if s is not None else self.w.dot(self.env.S_()) 
         
-    def ΔV(self,s): # gradient: we should have used ∇ , but Python does not like it
+    def ΔV(self,s): # gradient: we should have used ∇ , but Jupyter does not like it
         return s
 
-
 # ======================================= prediction algorithms==========================================
-class MC(vMRP):
-    def __init__(self,  **kw):
-        super().__init__(**kw)
-        self.store = True 
-        
+class vMC(vMRP):
+    
     def init(self):
-        super().init() # this is needed to bring w to the scope of the child class
         self.store = True 
         
     # ----------------------------- 🌘 offline, MC learning: end-of-episode learning ----------------------    
@@ -56,10 +50,12 @@ class MC(vMRP):
             Gt = self.γ*Gt + rn
             self.w += self.α*(Gt - self.V(s))*self.ΔV(s)
 
-class TDf(vMRP):
+
+class vTDf(vMRP):
+    
     def init(self):
-        super().init()
-        self.store = True        
+        self.store = True
+        
     # ----------------------------- 🌘 offline TD learning ----------------------------   
     def offline(self):
         for t in range(self.t, -1, -1):
@@ -70,15 +66,14 @@ class TDf(vMRP):
             
             self.w += self.α*(rn + (1-done)*self.γ*self.V(sn) - self.V(s))*self.ΔV(s)
 
-class TD(vMRP):
+class vTD(vMRP):
     # ----------------------------- 🌖 online learning ----------------------    
     def online(self, s, rn,sn, done, *args): 
         self.w += self.α*(rn + (1-done)*self.γ*self.V(sn) - self.V(s))*self.ΔV(s)
 
-class TDn(vMRP):
+class vTDn(vMRP):
 
     def init(self):
-        super().init()
         self.store = True # there is a way to save storage by using t%(self.n+1) but we left it for clarity
 
     # ----------------------------- 🌖 online learning ----------------------    
@@ -97,15 +92,14 @@ class TDn(vMRP):
         # n steps τ+1,..., τ+n inclusive of both ends
         self.w += self.α*(self.G(τ1,τn)+ (1-done)*self.γ**n *self.V(sn) - self.V(sτ))*self.ΔV(sτ)
         
-class TDnf(vMRP):
+class vTDnf(vMRP):
 
     def init(self):
-        super().init()
         self.store = True # offline method we need to store anyway
 
     # ----------------------------- 🌘 offline TD learning ----------------------------   
     def offline(self):
-        n=self.n        
+        n = self.n        
         for t in range(self.t+n): # T+n to reach T+n-1
             τ  = t - (n-1)
             if τ<0: continue
@@ -126,13 +120,14 @@ class TDnf(vMRP):
 
 class vMDP(MDP(vMRP)):
 
-    def init(self):
-        super().init()
+    def init_(self):
+        self.w = np.ones(self.env.nF)*self.v0
         self.W = np.ones((self.env.nA, self.env.nF))*self.q0
-        self.Q = self.Q_
+        
+        self.V_ = self.V
+        self.Q_ = self.Q
 
-    def Q_(self, s=None, a=None):
-        #print(s.shape)
+    def Q(self, s=None, a=None):
         W = self.W if a is None else self.W[a]
         return W@s if s is not None else np.matmul(W, self.env.S_()).T 
 
@@ -142,9 +137,8 @@ class vMDP(MDP(vMRP)):
 
 
 # ======================================= control algorithms===================================
-class MCC(vMDP):
+class vMCC(vMDP):
     def init(self):
-        super().init()
         self.store = True
     # ---------------------------- 🌘 offline, MC learning: end-of-episode learning-------------    
     def offline(self):  
@@ -161,7 +155,6 @@ class MCC(vMDP):
 # -------------------------------------🌖 Sarsa online learning ----------------------------------
 class vSarsa(vMDP):
     def init(self): #α=.8
-        super().init()
         self.step = self.step_an # for Sarsa we want to decide the next action in time step t
 
     def online(self, s, rn,sn, done, a,an):
@@ -183,7 +176,6 @@ class vXSarsa(vMDP):
 # ------------------------ 🌖 multi-step (value function) online learning -----------------------------      
 class vSarsan(vMDP):
     def init(self):
-        super().init()
         self.store = True        # although online but we need to access *some* of earlier steps,
         self.step = self.step_an # for Sarsa we want to decide the next action in time step t
       
@@ -341,7 +333,7 @@ class vPG(vMDP):
         
 # -------------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning continuos actions------------------------
 # In the linear case, the actions are usually continuous
-class Actor_Critic(vPG):
+class vActor_Critic(vPG):
     
     def __init__(self, α_critic, α_actor, **kw):
         self.α_critic = α_critic

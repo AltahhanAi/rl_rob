@@ -48,8 +48,11 @@ class Discretise:
         x = np.array([self._centres[d][idx[d]] for d in range(len(idx))], dtype=np.float32)
         return x
 
-# ======================================================================================================
-class GymDiscretised(GymCont, Discretise):
+# =============================== Discretised State Space Gym Env ===========================================
+'''
+This class returns an index for each state observation.
+'''
+class GymDiscreteS(GymCont, Discretise):
 
     def __init__(self, env_id, make=gym.make, **kw):
         # force flattening: we want a predictable (4,) vector before discretising
@@ -62,4 +65,22 @@ class GymDiscretised(GymCont, Discretise):
         """
         raw obs -> flat float vector -> clip -> normalise -> discretise -> int state id
         """
-        return self.discretise(obs)  # shape (4,)
+        return self.discretise(obs)
+        
+
+# =============================== Vectorised Gym Env ===========================================
+'''
+This class returns a vector for each state observation.
+'''
+class vGymDiscretS(GymDiscreteS):
+
+    def __init__(self, env_id, make=gym.make, **kw):
+        super().__init__(env_id=env_id, make=make, **kw)
+        self.nF = self.nS
+        
+    def _proc_obs(self, obs):
+        s = self.discretise(obs)  # scalar index
+        φ = np.zeros(self.nF)
+        φ[s] = 1
+        return φ                  # return feature vector, not scalar
+    

@@ -75,26 +75,51 @@ MountainCar = {
     # tile coding related..........................
     'low': (-1.2, -0.07),
     'high': (0.6, 0.07),
-    'n_tiles': (16, 16),
+    'n_tiles': (8, 8),
     'n_tilings': 8,
-    'hash_size': 4096,
+    'hash_size': 8*8*8,
 }
 
+# CartPole = {
+#     'env_id': 'CartPole-v1',
+#     # discretisation related.........................
+#     'n_bins': (4, 4, 8, 8),   # 1,024 states — close to the classic solution
+#     'clip_ranges': ((-2.4, 2.4), (-4.0, 4.0), (-0.209, 0.209), (-4.0, 4.0)),
+#     'scale': (2.4, 4.0, 0.209, 4.0),
+#     # tile coding related..........................
+#     'low': (-2.4, -4.0, -0.209, -4.0),
+#     'high': (2.4, 4.0, 0.209, 4.0),
+#     'n_tiles': (6, 6, 10, 10),
+#     'n_tilings': 8,
+#     'hash_size': 16384,
+# }
 CartPole = {
     'env_id': 'CartPole-v1',
-
-    # discretisation related.........................
-    'n_bins': (8, 8, 20, 20),
-    'clip_ranges': ((-2.4, 2.4), (-3.0, 3.0), (-0.209, 0.209), (-3.5, 3.5)),
-    'scale': (2.4, 3.0, 0.209, 3.5),
-
-    # tile coding related..........................
-    'low': (-2.4, -3.0, -0.209, -3.5),
-    'high': (2.4, 3.0, 0.209, 3.5),
-    'n_tiles': (8, 8, 8, 8),
+    'n_bins': (3, 3, 6, 12),   # 3×3×6×12 = 648 states — still manageable
+    'clip_ranges': ((-2.4, 2.4), (-4.0, 4.0), (-0.209, 0.209), (-4.0, 4.0)),
+    'scale': (2.4, 4.0, 0.209, 4.0),
+    'low': (-2.4, -4.0, -0.209, -4.0),
+    'high': (2.4, 4.0, 0.209, 4.0),
+    'n_tiles': (6, 4, 8, 12),  # more tiles for position
     'n_tilings': 8,
     'hash_size': 4096,
 }
+# CartPole = {
+#     'env_id': 'CartPole-v1',
+
+#     # discretisation related.........................
+#     'n_bins': (8, 8, 20, 20),
+#     'clip_ranges': ((-2.4, 2.4), (-3.0, 3.0), (-0.209, 0.209), (-3.5, 3.5)),
+#     'scale': (2.4, 3.0, 0.209, 3.5),
+
+#     # tile coding related..........................
+#     'low': (-2.4, -3.0, -0.209, -3.5),
+#     'high': (2.4, 3.0, 0.209, 3.5),
+#     'n_tiles': (8, 8, 8, 8),
+#     'n_tilings': 8,
+#     'hash_size': 4096,
+# }
+
 Acrobot = {
     'env_id': 'Acrobot-v1',
 
@@ -212,21 +237,21 @@ LunarLanderContinuous = {
 }
 
 
+    
+'''
+IMPORTANT:
+For pedagogical reasons, we use a reduced feature vector instead of the default 17-dimensional observation provided by HalfCheetah.
+
+Selected features:
+(rootz, rooty, rootx_dot, rootz_dot, rooty_dot, bthigh, fthigh, bthigh_dot, fthigh_dot)
+
+This reduced representation makes tabular discretisation or tile coding feasible. 
+Using the full 17-dimensional state would lead to an impractically large state space.
+
+For nonlinear function approximation methods (e.g., neural networks), it is generally preferable to use the full observation vector.
+'''
 HalfCheetah = {
     'env_id': 'HalfCheetah-v5',
-    
-    '''
-    IMPORTANT:
-    For pedagogical reasons, we use a reduced feature vector instead of the default 17-dimensional observation provided by HalfCheetah.
-    
-    Selected features:
-    (rootz, rooty, rootx_dot, rootz_dot, rooty_dot, bthigh, fthigh, bthigh_dot, fthigh_dot)
-    
-    This reduced representation makes tabular discretisation or tile coding feasible. 
-    Using the full 17-dimensional state would lead to an impractically large state space.
-    
-    For nonlinear function approximation methods (e.g., neural networks), it is generally preferable to use the full observation vector.
-    '''
 
     # discretisation related.........................
     'n_bins': (8, 12, 16, 12, 12, 10, 10, 10, 10),
@@ -253,6 +278,16 @@ HalfCheetah = {
     # actor critic related..........................
     'σ': 0.2
 }
+# ========================================= useful to quick try and env =======================================
+def play(env, steps=5, cont_actions=False):
+    obs, obses = env.reset(), []
+    for _ in range(steps):
+        action = randint(env.nA) if not cont_actions else env.action_space.sample()   # works for LunarLander and Pendulum
+        obs, reward, done, _, _ = env.step(action)
+        obses.append(obs)                                                         # store rendered frame
+        env.render()
+        if done: obs = env.reset()
+    return np.array(obses)
 
 # ==============================================================================================================
 class Gym(gym.Wrapper):
@@ -283,17 +318,26 @@ class Gym(gym.Wrapper):
 
         # Default: "input dim" of observations (works for Box/Dict/Tuple/Discrete)
         self.nS = flatdim(self.observation_space)
+        
 
         # If requested, for truly Discrete obs spaces nS means number of states
         if self.discrete_states and isinstance(self.observation_space, spaces.Discrete):
             self.nS = self.observation_space.n
-
+        
+        self.figsize0 = (3,2) # for compatibility
+    
+    def S_(self): 
+        pass # for compatibility and graceful failure when we call demoQ
+        
     def check_env(self, env_id):
         pass
 
     def _proc_obs(self, obs):
         return obs
-
+    
+    def s_(self):
+        return self._proc_obs(self.obs) # for compatibility
+        
     def _proc_action(self, a):
         # gym [up, right, down, left] vs yours [left, right, down, up]
         if self.remap_actions:
@@ -301,12 +345,12 @@ class Gym(gym.Wrapper):
         return a
 
     def reset(self, **kw):
-        obs, info = super().reset(**kw)
-        return self._proc_obs(obs)
+        self.obs, info = super().reset(**kw)
+        return self._proc_obs(self.obs)
 
     def step(self, a):
-        obs, r, terminated, truncated, info = super().step(self._proc_action(a))
-        return self._proc_obs(obs), r, terminated, truncated, info
+        self.obs, r, terminated, truncated, info = super().step(self._proc_action(a))
+        return self._proc_obs(self.obs), r, terminated, truncated, info
 
     def render(self, visible=True, pause=0, subplot=131, animate=True, **kw):
         if not visible: return
@@ -319,12 +363,12 @@ class Gym(gym.Wrapper):
             plt.show()
             time.sleep(pause)
 
-#----------------------------------------- now continuous state space envs -----------------------------------------
+#======================================= Continuous State Space envs =========================================
 
-class GymCont(Gym):
+class GymContS(Gym):
     """
     Suitable for continuous/structured observation spaces (Box, Dict, Tuple).
-    This class flatten the observation and hence not suitable for games which uses pixles
+    This class flatten the observation and hence is **not suitable for games which uses pixles**
     """
     def __init__(self, env_id="CartPole-v1", make=gym.make, render_mode="rgb_array", **kw):
         super().__init__(env_id=env_id, make=make, render_mode=render_mode)
@@ -350,3 +394,5 @@ class GymCont(Gym):
     def _proc_action(self, a):
         # IMPORTANT: continuous-class environments should NOT inherit gridworld action remapping.
         return a
+
+GymCont = GymContS

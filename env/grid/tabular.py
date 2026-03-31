@@ -225,7 +225,6 @@ def maze_large(Grid=Grid, **kw):
 def maze8(Grid=Grid, **kw): 
     return maze(Grid=Grid, nA=8, **kw)
 
-
 #-------------------------------suitable for prediction------------------------------------------------
 def randwalk(Grid=Grid, nS=5+2, Vstar=None, **kw):
     if Vstar is None: Vstar = np.arange(0,nS)/(nS-1)

@@ -44,6 +44,7 @@ import traceback
 '''
     All other RL classes will inherit from this class.
 '''
+
 class MRP:
     
     def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
@@ -83,6 +84,14 @@ class MRP:
         self.seed(seed)
         # to protect interact() in case of no training 
         self.ep = -1
+    
+    # set up the V table
+    def init_(self):
+        self.V = np.ones(self.env.nS)*self.v0
+    
+    # useful for inheritance, gives an expected return (value) for state s
+    def V_(self, s=None): 
+        return self.V  if s is None else self.V[s]
         
     # set up important metrics
     def init_metrics(self):
@@ -95,14 +104,6 @@ class MRP:
         self.Ts = np.resize(self.Ts, self.episodes)
         self.Rs = np.resize(self.Rs, self.episodes)
         self.Es = np.resize(self.Es, self.episodes)
-        
-    # set up the V table
-    def init_(self):
-        self.V = np.ones(self.env.nS)*self.v0
-
-    # useful for inheritance, gives an expected return (value) for state s
-    def V_(self, s=None): 
-        return self.V  if s is None else self.V[s]
     
     def seed(self, seed=None, **kw):
         if seed is not None: np.random.seed(seed); random.seed(seed)
@@ -322,7 +323,7 @@ class MRP:
     # overload the env render function
     def render(self, rn=None, label='', **kw):
         if rn is None: rn=self.rn
-        param = {'V':self.V_()} if self.underhood=='V' else {}
+        param = {'V':self.V_} if self.underhood=='V' else {}
         self.env.render(**param, 
                         label=label+' reward=%d, t=%d, ep=%d'%(rn, self.t+1, self.ep+1), 
                         underhood=self.underhood, 
@@ -330,7 +331,7 @@ class MRP:
 
 # -----------------------------random walk visualisation convenience extension ---------------------------
 '''
-    Adding some visualisation capabilities for random walk problem.
+    Adding some visualisation capabilities for the random walk problem.
     We use the same name to avoid using lots of different names and to keep our code simple.
 '''
 
@@ -346,15 +347,15 @@ class MRP(MRP):
         self.plotV = plotV 
         self.animate = animate
         self.eplist = []
-        
-        nS = self.env.nS
-        self.Vstar = Vstar if Vstar is not None else self.env.Vstar
+
+        self.Vstar = getattr(self.env, 'Vstar', None)
+
     #------------------------------------------- metrics -----------------------------------------------  
     # returns RMSE but can be overloaded if necessary
     # when Vstar=0, it shows how V is evolving via training 
     def Error(self):
-        if self.Vstar is None: return 0
-        return np.sqrt(np.mean(((self.V_() - self.Vstar)[1:-1])**2)) #if self.Vstar is not None else 0
+        if not hasattr(self, 'Vstar') or self.Vstar is None: return 0
+        return np.sqrt(np.mean(((self.V_() - self.Vstar)[1:-1])**2)) 
     
     #--------------------------------------------visualise ✍️----------------------------------------------
 
@@ -363,6 +364,7 @@ class MRP(MRP):
         
     def plot_exp(self, label='', **kw):
         self.plot_ep(animate=True, plot_exp=True, label=label)
+        # plt.show() 
         
     def plot_ep(self, animate=None, plot_exp=False, label=''): 
         if len(self.eplist)< self.episodes: self.eplist.append(self.ep+1)
@@ -396,7 +398,7 @@ class MRP(MRP):
 
 
     def plot_V(self, ep=0):
-        
+        if not hasattr(self, 'Vstar') or self.Vstar is None: print('Vstar has not been passed to the env'); return
         self.env.ax0 = plt.subplot(1,3,1) # to add this axis next to another axis to save some spaces
 #         plt.gcf().set_size_inches(16, 2)
         
@@ -627,4 +629,6 @@ demoT =    {'plotT':True, 'visual':True}                                   # sui
 demoR =    {'plotR':True, 'visual':True}                                   # suitable for control
 demoTR =   {'plotT':True, 'plotR':True, 'visual':True,'underhood':'maxQ'}  # suitable for control
 demoGame = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True}     # suitable for games
+demoGym = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True}     # suitable for games
 demoRobot = {'plotT':True, 'plotR':True, 'visual':True, 'animate':True, 'save_final':True, 'save_every':10} # suitable for robotics sim
+

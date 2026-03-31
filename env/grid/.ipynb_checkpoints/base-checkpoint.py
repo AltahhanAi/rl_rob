@@ -77,11 +77,14 @@ class Grid:
         self.rows = gridsize[0]
         self.cols = gridsize[1]
         self.nS = self.cols*self.rows # we assume cell IDs go left to right and top down
-        self.goals = [self.nS-1, self.nS-1] if goals is None else ([goals[0], goals[0]] if len(goals)==1 else goals)
-        self.S = [s for s in range(self.nS) if s not in self.goals] # set of nonterminal states S
-        self.S_= [s for s in range(self.nS)]                   # set of all states         S+
         
+        self.goals = [self.nS-1, self.nS-1] if goals is None else ([goals[0], goals[0]] if len(goals)==1 else goals)
+        
+        self.S = [s for s in range(self.nS) if s not in self.goals] # set of nonterminal states S
+        # self.S_= [s for s in range(self.nS)]                        # set of all states         S+
+
         self.Vstar = Vstar # optimal state value, needed for some of the environments
+        
         self.s0 = s0
         self.s = s0
         self.trace = [self.s0]
