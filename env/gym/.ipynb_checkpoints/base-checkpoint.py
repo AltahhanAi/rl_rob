@@ -80,19 +80,8 @@ MountainCar = {
     'hash_size': 8*8*8,
 }
 
-# CartPole = {
-#     'env_id': 'CartPole-v1',
-#     # discretisation related.........................
-#     'n_bins': (4, 4, 8, 8),   # 1,024 states — close to the classic solution
-#     'clip_ranges': ((-2.4, 2.4), (-4.0, 4.0), (-0.209, 0.209), (-4.0, 4.0)),
-#     'scale': (2.4, 4.0, 0.209, 4.0),
-#     # tile coding related..........................
-#     'low': (-2.4, -4.0, -0.209, -4.0),
-#     'high': (2.4, 4.0, 0.209, 4.0),
-#     'n_tiles': (6, 6, 10, 10),
-#     'n_tilings': 8,
-#     'hash_size': 16384,
-# }
+
+
 CartPole = {
     'env_id': 'CartPole-v1',
     'n_bins': (3, 3, 6, 12),   # 3×3×6×12 = 648 states — still manageable
@@ -104,21 +93,7 @@ CartPole = {
     'n_tilings': 8,
     'hash_size': 4096,
 }
-# CartPole = {
-#     'env_id': 'CartPole-v1',
 
-#     # discretisation related.........................
-#     'n_bins': (8, 8, 20, 20),
-#     'clip_ranges': ((-2.4, 2.4), (-3.0, 3.0), (-0.209, 0.209), (-3.5, 3.5)),
-#     'scale': (2.4, 3.0, 0.209, 3.5),
-
-#     # tile coding related..........................
-#     'low': (-2.4, -3.0, -0.209, -3.5),
-#     'high': (2.4, 3.0, 0.209, 3.5),
-#     'n_tiles': (8, 8, 8, 8),
-#     'n_tilings': 8,
-#     'hash_size': 4096,
-# }
 
 Acrobot = {
     'env_id': 'Acrobot-v1',
