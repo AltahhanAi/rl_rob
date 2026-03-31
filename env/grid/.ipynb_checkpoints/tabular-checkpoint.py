@@ -237,6 +237,7 @@ def randwalk_(Grid=Grid, nS=19+2, Vstar=None, **kw):
 # ------------------------------change default size of cells in jupyter: an indicaiton of successful import----
 def resize_cells(size=90):
     display(HTML('<style>.container {width:' +str(size) +'% !important}</style>'))
-    
 
+
+env2x3 = Grid(gridsize=[2, 3], s0=0, goals=[5], reward='reward_', figsize=[8,.9])
 resize_cells()

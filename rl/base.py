@@ -548,7 +548,7 @@ def MDP(MRP=MRP):
             # there is pr=ε/nA that a max action is chosen but is not considered max, we ignored it in favour of efficiency
             self.isamax = False 
             if self.dε < 1: self.ε = max(self.εmin, self.ε*self.dε)              # exponential decay
-            if self.εT > 0: self.ε = max(self.εmin, self.ε0 - self.t_ / self.εT) # linear      decay
+            if self.εT > 0: self.ε = max(self.εmin, self.ε0 * (1 - self.t_ / self.εT))# linear      decay
             
             return self.greedy(s) if rand() > self.ε else randint(0, self.env.nA)
     
