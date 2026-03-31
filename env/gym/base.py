@@ -228,6 +228,15 @@ For nonlinear function approximation methods (e.g., neural networks), it is gene
 HalfCheetah = {
     'env_id': 'HalfCheetah-v5',
 
+    # Raw obs is 17-dim. We select 9 features for tabular feasibility.
+    # Full layout: [rootx(0), rootz(1), rooty(2), bthigh(3), bshin(4), bfoot(5),
+    #               fthigh(6), fshin(7), ffoot(8), rootx_dot(9), rootz_dot(10),
+    #               rooty_dot(11), bthigh_dot(12), bshin_dot(13), bfoot_dot(14),
+    #               fthigh_dot(15), fshin_dot(16), ffoot_dot(17)]
+    # Excluded: rootx (unbounded), bshin, bfoot, fshin, ffoot (less informative)
+    'feature_indices': np.array([1, 2, 3, 6, 9, 10, 11, 12, 15]),
+    # selected:                  rootz, rooty, bthigh, fthigh, rootx_dot, rootz_dot, rooty_dot, bthigh_dot, fthigh_dot
+  
     # discretisation related.........................
     'n_bins': (8, 12, 16, 12, 12, 10, 10, 10, 10),
     'clip_ranges': (
