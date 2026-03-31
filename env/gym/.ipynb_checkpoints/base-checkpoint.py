@@ -85,7 +85,7 @@ MountainCar = {
 CartPole = {
     'env_id': 'CartPole-v1',
     # 'n_bins': (3, 6, 8, 12),   # 3×3×6×12 = 648 states — still manageable
-    'n_bins': (3, 3, 10, 12),    # pos vel angle angvel
+    'n_bins': (1, 1, 8, 16),   # (3, 3, 10, 12) pos vel angle angvel
     'clip_ranges': ((-2.4, 2.4), (-4.0, 4.0), (-0.209, 0.209), (-4.0, 4.0)),
     'scale': (2.4, 4.0, 0.209, 4.0),
     'low': (-2.4, -4.0, -0.209, -4.0),
