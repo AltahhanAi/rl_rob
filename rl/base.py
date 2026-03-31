@@ -49,7 +49,7 @@ class MRP:
     
     def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
-                 max_t=2000, seed=None, visual=False, underhood='',
+                 max_t=2000, seed=0, visual=False, underhood='',
                  last=10, print_=False, file_name='experiment.pkl', save_every=None, save_final=False, overwrite=False,
                 ):
         # hyperparameters
@@ -80,8 +80,9 @@ class MRP:
         self.As = list(range(nA))
         self.pAs = [1/nA]*nA
         
-        # useful to repeat the same experiement
-        self.seed(seed)
+        # useful to repeat the same experiment
+        self.seed = seed
+        self.set_seed(self.seed)
         # to protect interact() in case of no training 
         self.ep = -1
     
@@ -105,8 +106,11 @@ class MRP:
         self.Rs = np.resize(self.Rs, self.episodes)
         self.Es = np.resize(self.Es, self.episodes)
     
-    def seed(self, seed=None, **kw):
-        if seed is not None: np.random.seed(seed); random.seed(seed)
+    def set_seed(self, seed=None, **kw):
+        if seed is not None: 
+            np.random.seed(seed)
+            random.seed(seed)
+            self.env.reset(seed=self.seed)  # seed once at the start
     #-------------------------------------------buffer related-------------------------------------------------
     # The buffer gets reinitialised by reinitialising t only, but we have to be careful not to exceed t+1 at any time
     def allocate(self): 
@@ -176,7 +180,7 @@ class MRP:
             self.allocate()
             self.selfsave(overwrite) if save_every else None   # acts as a warning in case there is an issue with saving
             self.plot0()                                       # useful to see initial V values
-            self.seed(**kw)
+            self.set_seed(**kw)
             self.ep = -1  #+ (not train)*(self.episodes-1)
             self.t_ = 0                                        # steps counter for all episodes
         if resume:

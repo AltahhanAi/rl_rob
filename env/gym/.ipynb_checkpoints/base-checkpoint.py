@@ -84,14 +84,16 @@ MountainCar = {
 
 CartPole = {
     'env_id': 'CartPole-v1',
-    'n_bins': (3, 3, 6, 12),   # 3×3×6×12 = 648 states — still manageable
+    # 'n_bins': (3, 6, 8, 12),   # 3×3×6×12 = 648 states — still manageable
+    'n_bins': (3, 3, 10, 12),
+    #        pos vel angle angvel
     'clip_ranges': ((-2.4, 2.4), (-4.0, 4.0), (-0.209, 0.209), (-4.0, 4.0)),
     'scale': (2.4, 4.0, 0.209, 4.0),
     'low': (-2.4, -4.0, -0.209, -4.0),
     'high': (2.4, 4.0, 0.209, 4.0),
-    'n_tiles': (6, 4, 8, 12),  # more tiles for position
+    'n_tiles': (6, 6, 8, 12),  # more tiles for position
     'n_tilings': 8,
-    'hash_size': 4096,
+    'hash_size': 32768, #4096,
 }
 
 
@@ -211,7 +213,6 @@ LunarLanderContinuous = {
     'σ': 0.15
 }
 
-
     
 '''
 IMPORTANT:
@@ -262,6 +263,20 @@ HalfCheetah = {
     # actor critic related..........................
     'σ': 0.2
 }
+
+# ==============================================================================================================
+'''
+# A little utility to create a modified copy of any environment dictionary.
+# Changes are temporary (per-experiment) by default — the original dict is never mutated.
+# To permanently change a config, edit the source dictionary directly and document the change in your notebook.
+'''
+def envDict(base, **kw):
+    return {**base, **kw}
+
+# Examples:
+# envDict(CartPole, n_bins=(1, 1, 6, 12))                          # focus bins on pole only
+# envDict(CartPole, n_tiles=(6, 6, 8, 12), hash_size=2**15)        # tile coding tweaks
+# envDict(MountainCar, n_tilings=16, hash_size=2**15)              # more tilings
 # ========================================= useful to quick try and env =======================================
 def play(env, steps=5, cont_actions=False):
     obs, obses = env.reset(), []

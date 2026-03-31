@@ -106,7 +106,7 @@ class Grid:
         self.obstacles, self.cliffs = [], [] # lists that will be checked when doing actions
         
         
-    def reset(self, withtrace=True):
+    def reset(self, withtrace=True, **kw): # **kw for passing the seeds to gym 
         self.s = self.s0
         if withtrace: self.trace = [self.s0]
         return self.s_()
