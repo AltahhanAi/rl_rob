@@ -87,9 +87,12 @@ def vrandwalk(**kw):  return randwalk  (vGrid, **kw)
 def vrandwalk_(**kw): return randwalk_ (vGrid, **kw)
 def vgrid(**kw):      return grid      (vGrid, **kw)
 def vmaze(**kw):      return maze      (vGrid, **kw)
-def vMaze(**kw):      return Maze      (vGrid, **kw)
+# def vMaze(**kw):      return Maze      (vGrid, **kw)
+def vmaze_large(**kw):return maze_large(vGrid, **kw)
 def vcliffwalk(**kw): return cliffwalk (vGrid, **kw)
 def vwindy(**kw):     return windy     (vGrid, **kw)
+
+env2x3 = vGrid(gridsize=[2, 3], s0=0, goals=[5], reward='reward_', figsize=[8,.9])
 
 # ============================ useful vec grid env for prediction ====================================
 

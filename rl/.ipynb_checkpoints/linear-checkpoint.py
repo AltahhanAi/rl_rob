@@ -355,7 +355,7 @@ def TDtiledwalk(ntilings):
     env=tiledrandwalk_(nS=20, tilesize=4, offset=1, ntilings=ntilings)
     vTD(env=env, α=.02, episodes=200, **demoE()).interact(label='TD learning, %d tilings'%ntilings)
 
-def TDλ_MC_Walk_αλcompare(algorithm=vTDλ, label='TD(λ)', runs=10):
+def TDλ_MC_Walk_Compare_αλ(algorithm=vTDλ, label='TD(λ)', runs=10):
     
     steps0 = list(np.arange(.001,.01,.001))
     steps1 = list(np.arange(.011,.2,.02))
@@ -373,7 +373,6 @@ def TDλ_MC_Walk_αλcompare(algorithm=vTDλ, label='TD(λ)', runs=10):
                                   runs=runs, 
                                   hyper={'α':αs[:end]}, 
                                   plotE=True).compare(label='λ=%.3f'%λ)
-
     if algorithm==vtrueTDλ:
         compare = Compare(algorithm=vMC(env=vrandwalk_(), v0=0, episodes=10), 
                                   runs=runs, 
@@ -415,7 +414,7 @@ def GymTiled_n_tilings_runs(algo=vSarsa, runs=10, α=.3, Env=CartPole, tilings=[
     plt.yscale('log')
     plt.show()
 
-def nSarsa_GymTiled_αn_compare(runs=3, episodes=50, Env=CartPole): 
+def GymTiled_Compare_αn(algo=vSarsan, Env=CartPole, ε=.05, episodes=50, runs=3): 
     env = GymTiled(**Env)
     n_tilings = Env['n_tilings']
     
@@ -428,8 +427,27 @@ def nSarsa_GymTiled_αn_compare(runs=3, episodes=50, Env=CartPole):
         if n==3: αs = np.arange(.1,  1.2,  .07)
         if n==4: αs = np.arange(.1,  1.0,  .07)
     
-        Compare(algorithm=vSarsan(env=env, n=2**n, episodes=episodes, ε=0), runs=runs, 
+        Compare(algorithm=algo(env=env, n=2**n, episodes=episodes, ε=ε), runs=runs, 
                                   hyper={'α':αs/n_tilings}, 
                                   plotT=True).compare(label=f'{2**n}-step Sarsa')
+    plt.show()
+    
+    def GymTiled_Compare_αλ(algo=vtrueSarsaλ, Env=MountainCar, ε=.05, episodes=50, runs=3):
+    
+    env = GymTiled(**Env)
+    n_tilings = Env['n_tilings']
+    plt.title(f'Steps per episode averaged over first {episodes} episodes for {algo.__name__}')
+
+    for λ in [0, .68, .84, .92]:#, .96, .98, .99]:
+        if λ>=.0: αs = np.arange(.1,  1.8,  .1)
+        if λ>=.6: αs = np.arange(.1,  1.8,  .1)
+        if λ>=.8: αs = np.arange(.1,  1.8,  .1)
+        if λ>=.9: αs = np.arange(.1,  1.8,  .15)
+        if λ>=.98: αs = np.arange(.1,  .7,  .15)
+        if λ>=.98: αs = np.arange(.1,  .7,  .07)
+    
+        Compare(algorithm=algo(env=env, λ=λ, episodes=episodes, ε=ε), runs=runs, 
+                                   hyper={'α':αs/n_tilings}, 
+                                  plotT=True).compare(label=f'λ={λ}')
     plt.show()
     
