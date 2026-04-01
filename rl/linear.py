@@ -432,7 +432,7 @@ def GymTiled_Compare_αn(algo=vSarsan, Env=CartPole, ε=.05, episodes=50, runs=3
                                   plotT=True).compare(label=f'{2**n}-step Sarsa')
     plt.show()
     
-    def GymTiled_Compare_αλ(algo=vtrueSarsaλ, Env=MountainCar, ε=.05, episodes=50, runs=3):
+def GymTiled_Compare_αλ(algo=vtrueSarsaλ, Env=MountainCar, ε=.05, episodes=50, runs=3):
     
     env = GymTiled(**Env)
     n_tilings = Env['n_tilings']
