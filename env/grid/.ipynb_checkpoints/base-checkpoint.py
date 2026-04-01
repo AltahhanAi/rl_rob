@@ -198,6 +198,9 @@ class Grid(Grid):
         self.reward100  = [-1, 100, 100,   -1]
         self.rewardall1 = [ 1,   1,   1,    1]
         
+        self.sparse     = [0,    1,   0, -100]
+        self.dense      = [-1,  -1,  -1,   -1]
+        
 
         if reward: self.rewards  = getattr(self, reward) if isinstance(reward, str) else reward
         self.style = style
