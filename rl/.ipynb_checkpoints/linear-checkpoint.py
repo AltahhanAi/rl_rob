@@ -355,6 +355,30 @@ def TDtiledwalk(ntilings):
     env=tiledrandwalk_(nS=20, tilesize=4, offset=1, ntilings=ntilings)
     vTD(env=env, α=.02, episodes=200, **demoE()).interact(label='TD learning, %d tilings'%ntilings)
 
+def TDλ_MC_Walk_αλcompare(algorithm=vTDλ, label='TD(λ)', runs=10):
+    
+    steps0 = list(np.arange(.001,.01,.001))
+    steps1 = list(np.arange(.011,.2,.02))
+    steps2 = list(np.arange(.25,1.,.05))
+
+    αs = np.round(steps0 +steps1 + steps2, 2)
+    #αs = np.arange(0,1.05,.1) # quick testing
+    
+    plt.xlim(-.02, 1)
+    plt.ylim(.24, .56)
+    plt.title('%s RMS error Average over 19 states and first 10 episodes'%label)
+    for λ in [0, .1, .4, .8, .9, .95, .975, .99, 1]:
+        end=34 if λ<.975 else (-3 if λ<.99 else -10)
+        compare = Compare(algorithm=algorithm(env=vrandwalk_(), v0=0, λ=λ, episodes=10), 
+                                  runs=runs, 
+                                  hyper={'α':αs[:end]}, 
+                                  plotE=True).compare(label='λ=%.3f'%λ)
+
+    if algorithm==vtrueTDλ:
+        compare = Compare(algorithm=vMC(env=vrandwalk_(), v0=0, episodes=10), 
+                                  runs=runs, 
+                                  hyper={'α':αs}, 
+                                  plotE=True).compare(label='MC ≡ TD(λ=1)', frmt='-.')
 
 # =========================a set of useful control comparisons =========================================
 def Gym_runs(algo=vSarsa, env=vGymDiscreteS(**CartPole), runs=10,  αs=[.1, .2, .5], αscale=1.0, ε=0.05, episodes=200,
