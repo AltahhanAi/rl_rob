@@ -406,5 +406,5 @@ def nSarsa_GymTiled_αn_compare(runs=3, episodes=50, Env=CartPole):
         Compare(algorithm=vSarsan(env=env, n=2**n, episodes=episodes, ε=0), runs=runs, 
                                   hyper={'α':αs/n_tilings}, 
                                   plotT=True).compare(label=f'{2**n}-step Sarsa')
-     plt.show()
+    plt.show()
     
