@@ -17,9 +17,9 @@ class vGrid(Grid):
         
     # vectorised state representation: one-hot encoding (1 component represents a state)
     # s_ now returns a vector, not one value/index
-    def s_(self):
+    def s_(self, s=None):
         φ = np.zeros(self.nF)
-        φ[self.s] = 1 
+        φ[self.s if s is None else s] = 1 
         return φ
     
     def S_(self):
