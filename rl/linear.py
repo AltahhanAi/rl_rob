@@ -10,6 +10,7 @@
 from rl.tabular import *
 from env.grid.linear import *
 from env.gym.tiled import *
+from env.gym.discretised import *
 
 from math import floor
 # ======================================= prediction master class==========================================
