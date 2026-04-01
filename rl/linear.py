@@ -356,22 +356,46 @@ def TDtiledwalk(ntilings):
 
 
 # =========================a set of useful control comparisons =========================================
-def MountainCarRuns(runs=20, algo=vSarsa, env=Gym(**MountainCar), label='', ε=0):
-    for α in [.1, .2, .5]:
-        sarsaRuns = Runs(algorithm=algo(env=env, α=α/8, episodes=500, ε=ε),
-                         runs=runs, seed=1, plotT=True).interact(label='α=%.2f/8'%α)
-    plt.ylim((10**2,10**3))
+def Gym_runs(algo=vSarsa, env=vGymDiscreteS(**CartPole), runs=10,  αs=[.1, .2, .5], αscale=1.0, ε=0.05, episodes=200,
+                label='discretised', ylog=True, ylim=None):  
+    for α in αs:                                                                     
+        sarsaRuns = Runs(algorithm=algo(env=env, α=α/αscale, episodes=episodes, ε=ε),
+                         runs=runs, seed=1, plotT=True).interact(label=f'α = {α}/{αscale}')
+    if ylog: plt.yscale('log')
+    if ylim: plt.ylim(ylim)
+    plt.title('Semi Gradient ' + algo.__name__ + ' on ' + env.spec.id + ' ' + label)
+
+
+def nSarsa_GymTiled_αn_runs(runs=10, Env=CartPole, ε=0.05, episodes=100):
+    env = GymTiled(**Env)
+    n_tilings = Env['n_tilings']
+    plt.title(f"n-step Sarsa with Tiled Coding on {Env['env_id']}: comparison of n with {n_tilings} tilings")
+    for n, α in zip([1, 8], [.1, .3]):
+        algoRuns = Runs(algorithm=vSarsan(env=env, n=n, α=α/n_tilings, episodes=episodes, ε=ε), 
+                         runs=runs, seed=1, plotT=True).interact(label=f'{n} step-Sarsa, α={α}/{n_tilings}')
+    # plt.ylim((10**2,10**3))
     plt.yscale('log')
-    plt.title('Semi Gradient ' + algo.__name__  +' on Mountain Car '+label)
+    plt.show()
 
+import math
+def GymTiled_n_tilings_runs(algo=vSarsa, runs=10, α=.3, Env=CartPole, tilings=[2, 4, 8, 16, 32]):
+    plt.title(f"{algo.__name__} on {Env['env_id']}: comparison of different tilings with α={α}/n_tilings")
+    for n_tilings in tilings:
+        total_tiles = CartPole['n_tilings'] * np.prod(CartPole['n_tiles'] ) # n_tilings x ntiles1 x ntiles2...
+        hash_size = 2 ** math.ceil(math.log2(total_tiles))                  # get the nearest 2**n
+        env = GymTiled(**envDict(Env, hash_size=hash_size, n_tilings=n_tilings))
+        algoRuns = Runs(algorithm=algo(env=env,α=α/n_tilings, episodes=500, ε=0), 
+                         runs=runs, seed=1, plotT=True).interact(label='%d tilings'%n_tilings)
+    # plt.ylim((10**2, 10**3))
+    plt.yscale('log')
+    plt.show()
 
-def MountainCarTiledCompare_n(runs=5, ntilings=8,  env=GymTiled(**MountainCar)): # 10
-    xsticks = np.array([0, .5 , 1, 1.5, 2, 2.3])/ntilings
-    plt.xticks(ticks=xsticks, labels=xsticks*ntilings)
-    plt.yticks([220, 240, 260, 280, 300])
-    plt.ylim(210, 300)
-    plt.title('Steps per episode averaged over first 50 episodes')
-
+def nSarsa_GymTiled_αn_compare(runs=3, episodes=50, Env=CartPole): 
+    env = GymTiled(**Env)
+    n_tilings = Env['n_tilings']
+    
+    plt.title(f'Steps per episode averaged over first {episodes} episodes')
+    
     for n in range(5):
         if n==0: αs = np.arange(.4,  1.8,  .1)
         if n==1: αs = np.arange(.2,  1.8,  .1)
@@ -379,27 +403,8 @@ def MountainCarTiledCompare_n(runs=5, ntilings=8,  env=GymTiled(**MountainCar)):
         if n==3: αs = np.arange(.1,  1.2,  .07)
         if n==4: αs = np.arange(.1,  1.0,  .07)
     
-        Compare(algorithm=vSarsan(env=env(ntiles=8, ntilings=ntilings), n=2**n, episodes=50, ε=0), runs=runs, 
-                                  hyper={'α':αs/ntilings}, 
-                                  plotT=True).compare(label='%d-step Sarsa'%2**n)
-    plt.xlabel(r'$\alpha \times 8$ since we used 8 tiles for each tilings')
-    plt.show()
-
-figure_10_4_n = MountainCarTiledCompare_n
-
-
-def SarsaOnMountainCar(ntilings, env=GymTiled(**MountainCar)):
-    sarsa = vSarsa(env=env(ntilings=ntilings), α=.5/ntilings, episodes=500, seed=1, ε=0, plotT=True).interact(label='ntilings=%d'%ntilings)
-    plt.gcf().set_size_inches(20,4)
-    plt.ylim(100,1000)
-    return sarsa
-
-
-def MountainCarTilings(runs=20, α=.3, algo=vSarsa, env=GymTiled(**MountainCar)):
-    plt.title('Sarsa on mountain car: comparison of different tilings with α=%.2f/8'%α)
-    for ntilings in [2, 4, 8, 16, 32]:
-        sarsaRuns = Runs(algorithm=algo(env=env(ntiles=8, ntilings=ntilings),α=α/ntilings,episodes=500, ε=0), 
-                         runs=runs, seed=1, plotT=True).interact(label='%d tilings'%ntilings)
-    plt.ylim((10**2,10**3))
-    plt.yscale('log')
-    plt.show()
+        Compare(algorithm=vSarsan(env=env, n=2**n, episodes=episodes, ε=0), runs=runs, 
+                                  hyper={'α':αs/n_tilings}, 
+                                  plotT=True).compare(label=f'{2**n}-step Sarsa')
+     plt.show()
+    
