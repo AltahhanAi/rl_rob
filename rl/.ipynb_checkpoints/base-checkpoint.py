@@ -47,7 +47,7 @@ import traceback
 
 class MRP:
     
-    def __init__(self, env=randwalk(), γ=1, α=.1, v0=0, episodes=100, view=1,
+    def __init__(self, env=randwalk(), γ=None, α=.1, v0=0, episodes=20, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
                  max_t=2000, seed=0, visual=False, underhood='',
                  last=10, print_=False, file_name='experiment.pkl', save_every=None, save_final=False, overwrite=False,
@@ -89,6 +89,8 @@ class MRP:
     # set up the V table
     def init_(self):
         self.V = np.ones(self.env.nS)*self.v0
+        # if the user does not set γ, set it to 1 to obtain an analytical solution for prediction (typical case for using MRP)
+        if self.γ is None: self.γ = 1 
     
     # useful for inheritance, gives an expected return (value) for state s
     def V_(self, s=None): 
@@ -520,6 +522,9 @@ def MDP(MRP=MRP):
         def init_(self):
             super().init_() # initialises V
             self.Q = np.ones((self.env.nS, self.env.nA))*self.q0
+            
+            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
+            if self.γ is None: self.γ = .98
         
         #------------------------------------- add some more policy types 易-------------------------------
         # useful for inheritance, gives us a vector of action values

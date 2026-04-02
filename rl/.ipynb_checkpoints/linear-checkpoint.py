@@ -195,6 +195,7 @@ class vSarsan(vMDP):
         # n steps τ+1,..., τ+n inclusive of both ends
         self.W[aτ] += self.α*(self.G(τ1,τn) + (1-done)*self.γ**n *self.Q(sn,an) - self.Q(sτ,aτ))*self.ΔQ(sτ)
 
+# ========================
 # ------------------------ 🌖 multi-step (value function prediction) online learning -----------------------   
 class vTDλ(vMRP):
     def __init__(self, λ=.5, **kw):
@@ -252,7 +253,7 @@ class vtrueSarsaλ(vMDP):
     def step0(self):
         self.Z = self.W*0
         self.qo = 0
-    # --------🌖 online learning ----------
+        
     def online(self, s, rn,sn, done, a,an):
         α, γ, λ = self.α, self.γ, self.λ
         
@@ -264,8 +265,28 @@ class vtrueSarsaλ(vMDP):
         self.W[a] += α*(δ + self.q - self.qo )*self.Z[a] - α*(self.q - self.qo)*s
         self.qo = self.qn
 
+# ------------------------ 🌖 multi-step, value function control, online learning -----------------------
+'''
+This method combines both online and offline learning; it is similar to Sarsaλ but cleaner, as it separates the online stage from the delayed credit backpropagation stage. Therefore, it might be more desirable, particularly for sparse rewards
+'''
+class vSarsa_online_offline(vMDP):
 
+    def init(self):
+        self.step = self.step_an # for Sarsa, we want to decide the next action in time step t
+        self.store = True
 
+    def online(self, s, rn,sn, done, a,an):
+        self.W[a] += self.α*(rn + (1-done)*self.γ*self.Q(sn,an) - self.Q(s,a))*self.ΔQ(s)
+
+    def offline(self):  
+        for t in range(self.t - self.ep, -1, -1):
+            s = self.s[t]
+            a = self.a[t]
+            sn = self.s[t+1]
+            an = self.a[t+1]
+            rn = self.r[t+1]
+            
+            self.W[a] += (self.α/4)*(self.Q(sn,an) - self.Q(s,a))*self.ΔQ(s)
 # ===================all *continuous-action policy-gradient control algorithms* must inherit this class============================
 
 '''
