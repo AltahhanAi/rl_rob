@@ -54,7 +54,9 @@ class MRP:
                 ):
         # hyperparameters
         self.env = env
-        self.γ = γ
+        
+        # if the user does not set γ, set it to 1 to obtain an analytical solution for prediction (typical case for using MRP)
+        self.γ = γ if γ is not None else 1 
         self.α = α # average methods(like MC1st) do not need this, but many other methods (like MCα) do
         self.v0 = v0
         self.episodes = episodes
@@ -89,8 +91,6 @@ class MRP:
     # set up the V table
     def init_(self):
         self.V = np.ones(self.env.nS)*self.v0
-        # if the user does not set γ, set it to 1 to obtain an analytical solution for prediction (typical case for using MRP)
-        if self.γ is None: self.γ = 1 
     
     # useful for inheritance, gives an expected return (value) for state s
     def V_(self, s=None): 
@@ -505,7 +505,10 @@ def MDP(MRP=MRP):
             self.dε = dε # for exp decay
             self.εT = εT # for lin decay
             self.εmin = εmin
-            
+
+            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
+            if self.γ is None: self.γ = .98
+
             # override the policy to εgreedy to make control possible
             self.policy = self.εgreedy
 
@@ -522,9 +525,6 @@ def MDP(MRP=MRP):
         def init_(self):
             super().init_() # initialises V
             self.Q = np.ones((self.env.nS, self.env.nA))*self.q0
-            
-            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
-            if self.γ is None: self.γ = .98
         
         #------------------------------------- add some more policy types 易-------------------------------
         # useful for inheritance, gives us a vector of action values
