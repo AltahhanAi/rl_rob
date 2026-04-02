@@ -590,7 +590,9 @@ def MDP(MRP=MRP):
 
 '''
     all other *policy gradient control algorithms* must inherit this class
-
+    **Important**: 
+        PG  is suitable only for discrete-action environments, while
+        vPG is suitable only for continuous-action environments (see rl.linear.py) 
 '''
 def PG(MDP=MDP(MRP)):
     class PG(MDP):
@@ -626,7 +628,8 @@ def PG(MDP=MDP(MRP)):
 
         # overriding π() in parent class MDP: 
         # in MDP π() returns probabilities according to an ε-greedy,
-        # in PG  π() returns probabilities according to a τsoftmax,
+        # in PG  π() returns probabilities according to a τsoftmax, 
+        
         def π(self, s, a=None):
             Qs = self.Q_(s)
             exp = np.exp(Qs/self.τ)
