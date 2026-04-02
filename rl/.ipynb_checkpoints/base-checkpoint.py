@@ -499,8 +499,9 @@ def MDP(MRP=MRP):
     class MDP(MRP):
         def __init__(self, env=grid(), commit_ep=0, ε=.1, εmin=0.01, dε=1, εT=0, q0=0, Tstar=0, **kw): 
 
-            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
-            if 'γ' not in kw: kw['γ'] = .98
+            # if the user does not set γ, set it to .98 to obtain a convergent policy for MDP and PG, (especially for sparse rewards)
+            # must be done here before calling  super().__init__() otherwise it will be overridden by MRP, which sets γ=1
+            if 'γ' not in kw: kw['γ'] = .98 
                 
             super().__init__(env=env, **kw)
             # set up hyperparameters
@@ -509,8 +510,6 @@ def MDP(MRP=MRP):
             self.dε = dε # for exp decay
             self.εT = εT # for lin decay
             self.εmin = εmin
-
-
 
             # override the policy to εgreedy to make control possible
             self.policy = self.εgreedy
@@ -600,6 +599,7 @@ def MDP(MRP=MRP):
 def PG(MDP=MDP(MRP)):
     class PG(MDP):
         def __init__(self, τ=1, τmin=.01, dτ=1, Tτ=0, **kw):
+            if 'γ' not in kw: kw['γ'] = .98 # not strictly necessary but to avoid future issues if we decided to inherit from MRP
             super().__init__(**kw)
             # set up hyperparameters
             self.τ = τ
@@ -607,9 +607,6 @@ def PG(MDP=MDP(MRP)):
             self.dτ = dτ
             self.Tτ = Tτ
             self.τmin = τmin
-
-            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
-            if self.γ is None: self.γ = .98
 
         #----------------------------------- add some more policy types 易-------------------------------
         # returns a softmax action
@@ -634,7 +631,6 @@ def PG(MDP=MDP(MRP)):
             Qs = self.Q_(s)
             exp = np.exp(Qs/self.τ)
             return exp/exp.sum() if a is None else (exp/exp.sum())[a]
-
     
         # we should have used ∇ , but Python does not like it
         # gradient of the log of the policy π that appears in the **policy gradient theorem**
