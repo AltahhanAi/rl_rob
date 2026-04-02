@@ -56,6 +56,7 @@ class MRP:
         self.env = env
         
         # if the user does not set γ, set it to 1 to obtain an analytical solution for prediction (typical case for using MRP)
+        # We have set the default γ for MDP and its children, like PG, to .98 if γ is not passed.
         self.γ = γ if γ is not None else 1 
         self.α = α # average methods(like MC1st) do not need this, but many other methods (like MCα) do
         self.v0 = v0
@@ -598,7 +599,7 @@ def MDP(MRP=MRP):
 '''
 def PG(MDP=MDP(MRP)):
     class PG(MDP):
-        def __init__(self, τ=1, τmin=.1, dτ=1, Tτ=0, **kw):
+        def __init__(self, τ=1, τmin=.01, dτ=1, Tτ=0, **kw):
             super().__init__(**kw)
             # set up hyperparameters
             self.τ = τ
