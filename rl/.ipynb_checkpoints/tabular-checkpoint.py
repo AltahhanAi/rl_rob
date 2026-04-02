@@ -73,7 +73,7 @@ class REINFORCE(PG()):
         self.store = True
     
     def offline(self):
-        π, γ, α, τ = self.π, self.γ, self.α, self.τ
+        Δlogπ, γ, α, τ = self.Δlogπ, self.γ, self.α, self.τ
         # obtain the return for the latest episode
         Gt = 0
         γt = γ**self.t                  # efficient way to calculate powers of γ backwards
@@ -86,7 +86,7 @@ class REINFORCE(PG()):
             δ = Gt - self.V[s]
             
             self.V[s]   += α*δ
-            self.Q[s,a] += α*δ*(1 - π(s,a))*γt/τ
+            self.Q[s,a] += α*δ*Δlogπ(s,a)*γt/τ
             γt /= γ
 
 '''
