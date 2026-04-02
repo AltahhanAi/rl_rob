@@ -12,8 +12,10 @@ from env.grid.tabular import *
 from math import floor
 # ======================================================================================
 '''
-    offline here in the sense of end-of-episode learning, 
+    offline episode-wise learning: here in the sense of end-of-episode learning, 
     not a pure offline, where there are no in-between episodes learning
+
+    We start with offline episode-wise V state-value-function learning (prediction). 
 '''
 # ------------------ 🌘 offline Monte Carlo value function prediction learning -----------------------
 class MC(MRP):
@@ -30,6 +32,24 @@ class MC(MRP):
             Gt = self.γ*Gt + rn
             self.V[s] += self.α*(Gt - self.V[s])
 
+# -------------------- 🌘 offline Temporal Difference(TD): value prediction learning ----------------------
+class TDf(MRP):
+    def init(self):
+        self.store = True
+  
+    def offline(self):
+        #for t in range(self.t, -1, -1):
+        for t in range(self.t+1):
+            s = self.s[t]
+            sn = self.s[t+1]
+            rn = self.r[t+1]
+            done = self.done[t+1]
+            
+            self.V[s] += self.α*(rn + (1- done)*self.γ*self.V[sn]- self.V[s])
+
+'''
+    now offline episode-wise Q action-value-function learning (control). 
+'''
 # ------------------- 🌘 offline Monte Carlo value function control learning 🧑🏻‍🏫 -----------------------
 class MCC(MDP()):
     def init(self):
@@ -69,25 +89,13 @@ class REINFORCE(PG()):
             self.Q[s,a] += α*δ*(1 - π(s,a))*γt/τ
             γt /= γ
 
+'''
+    now online step-wise V state-value-function learning (prediction). 
+'''
 # -------------------- 🌖 online Temporal Difference: value prediction learning ------------------------
 class TD(MRP):  
     def online(self, s, rn,sn, done, *args): 
         self.V[s] += self.α*(rn + (1- done)*self.γ*self.V[sn] - self.V[s])
-
-# -------------------- 🌘 offline Temporal Difference(TD): value prediction learning ----------------------
-class TDf(MRP):
-    def init(self):
-        self.store = True
-  
-    def offline(self):
-        #for t in range(self.t, -1, -1):
-        for t in range(self.t+1):
-            s = self.s[t]
-            sn = self.s[t+1]
-            rn = self.r[t+1]
-            done = self.done[t+1]
-            
-            self.V[s] += self.α*(rn + (1- done)*self.γ*self.V[sn]- self.V[s])
 
 # -------------------- 🌖 online multi-step TD: value prediction learning ---------------------------------
 class TDn(MRP):          
@@ -132,6 +140,9 @@ class TDnf(MRP):
             # n steps τ+1,..., τ+n inclusive of both ends
             self.V[sτ] += self.α*(self.G(τ1,τn)+ (1- done)*self.γ**n *self.V[sn] - self.V[sτ])
 
+'''
+    now online step-wise Q action-value-function learning (control). 
+'''
 # -------------------- 🌖 online Sarsa: value control learning -----------------------------------------
 class Sarsa(MDP()):
     def init(self): #α=.8
@@ -145,8 +156,7 @@ class Sarsan(MDP()):
     def init(self):
         self.store = True        # although online but we need to access *some* of earlier steps,
         self.step = self.step_an # for Sarsa we want to decide the next action in time step t
-    
-    # ----------------------------- 🌖 online learning ----------------------    
+     
     def online(self,*args):
         τ = self.t - (self.n-1);  n=self.n
         if τ<0: return
@@ -217,8 +227,12 @@ class QVλlearn(MDP()):# suitable for dense reward (intermediate steps rewards)
         self.V[s]   += self.α*(rn + (1- done)*self.γ*self.V[sn] - self.V[s])*self.z[s]
         self.Q[s,a] += self.α*(rn + (1- done)*self.γ*self.V[sn] - self.Q[s,a])
 
+
+'''
+    now online step-wise policy learning
+'''
 # -------------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning ------------------------
-# In the tabular case, there actions are usually discrete
+# In the tabular case, actions are usually discrete
 class Actor_Critic(PG()):
     def step0(self):
         self.γt = 1 # powers of γ, must be reset at the start of each episode
@@ -231,6 +245,10 @@ class Actor_Critic(PG()):
         self.Q[s,a] += α*δ*(1- π(s,a))*γt/τ          # actor
         self.γt *= γ
 
+
+'''
+ Now some Experiments
+'''
 # ===================adding a few functions that will serve us well for comparing famous algorithms=====================
 def TD_MC_randwalk(env=randwalk(), alg1=TDf, alg2=MC):
     plt.xlim(0, 100)

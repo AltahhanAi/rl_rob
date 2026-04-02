@@ -603,6 +603,9 @@ def PG(MDP=MDP(MRP)):
             self.Tτ = Tτ
             self.τmin = τmin
 
+            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
+            if self.γ is None: self.γ = .98
+            
             # softmax is the default policy selection procedure for Policy Gradient methods
             self.policy = self.τsoftmax
 
@@ -628,7 +631,13 @@ def PG(MDP=MDP(MRP)):
             Qs = self.Q_(s)
             exp = np.exp(Qs/self.τ)
             return exp/exp.sum() if a is None else (exp/exp.sum())[a]
-        
+
+    
+        # we should have used ∇ , but Python does not like it
+        # gradient of the log of the policy π that appears in the **policy gradient theorem**
+        def Δlogπ(self, s, a):
+            return (1 - self.π(s,a))
+
     return PG
 
 # =======================handy quick setting depending on the problem(prediction or control)==================
