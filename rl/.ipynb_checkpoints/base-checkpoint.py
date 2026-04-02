@@ -498,6 +498,9 @@ def MDP(MRP=MRP):
     class MDP(MRP):
         def __init__(self, env=grid(), commit_ep=0, ε=.1, εmin=0.01, dε=1, εT=0, q0=0, Tstar=0, **kw): 
 
+            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
+            if γ not in **kw: kw['γ'] = .98
+                
             super().__init__(env=env, **kw)
             # set up hyperparameters
             self.ε = ε 
@@ -506,8 +509,7 @@ def MDP(MRP=MRP):
             self.εT = εT # for lin decay
             self.εmin = εmin
 
-            # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
-            if self.γ is None: self.γ = .98
+
 
             # override the policy to εgreedy to make control possible
             self.policy = self.εgreedy
@@ -607,9 +609,6 @@ def PG(MDP=MDP(MRP)):
 
             # if the user does not set γ, set it to .98 to obtain a convergent policy, (especially sparse reward using MDP)
             if self.γ is None: self.γ = .98
-            
-            # softmax is the default policy selection procedure for Policy Gradient methods
-            self.policy = self.τsoftmax
 
         #----------------------------------- add some more policy types 易-------------------------------
         # returns a softmax action
