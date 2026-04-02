@@ -635,7 +635,7 @@ def PG(MDP=MDP(MRP)):
         # we should have used ∇ , but Python does not like it
         # gradient of the log of the policy π that appears in the **policy gradient theorem**
         def Δlogπ(self, s, a):
-            # (e := np.zeros(4))[1]=1
+            # (e := np.zeros(4))[1]=1 # gives array([0., 1., 0., 0.])
             (e := np.zeros(self.env.nA))[a] = 1 # warlus operator to get 1[a=At]
             return e - self.π(s) # this is a vector of size nA
 

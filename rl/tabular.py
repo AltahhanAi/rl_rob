@@ -85,8 +85,8 @@ class REINFORCE(PG()):
             Gt = γ*Gt + rn
             δ = Gt - self.V[s]
             
-            self.V[s]   += α*δ
-            self.Q[s,a] += α*δ*Δlogπ(s,a)*γt/τ
+            self.V[s] += α*δ
+            self.Q[s] += α*δ*Δlogπ(s,a)*γt/τ
             γt /= γ
 
 '''
