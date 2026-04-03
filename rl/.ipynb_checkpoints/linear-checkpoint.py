@@ -135,6 +135,8 @@ class vMDP(MDP(vMRP)):
     # we should have used ∇ , but Python does not like it
     def ΔQ(self,s): 
         return s
+    def ΔQ_(self, s):    
+        return s[None, :] # extends the dim for policy gradient class outer product
 
 
 # ======================================= control algorithms===================================
