@@ -120,6 +120,9 @@ class vTDnf(vMRP):
 # ======================================= control master class==========================================
 
 class vMDP(MDP(vMRP)):
+    def __init__(**kw):
+        if 'γ' not in kw: kw['γ'] = .98 
+        super().__init__(**kw)
 
     def init_(self):
         self.w = np.ones(self.env.nF)*self.v0
@@ -241,10 +244,12 @@ class vSarsaλ(vMDP):
     
     def step0(self):
         self.Z = self.W*0
-
+    # ----------------------------------------🌖 online learning ----------------------------------------
     def online(self, s, rn,sn, done, a,an):
-        self.Z[a] = self.λ*self.γ*self.Z[a] + self.ΔQ(s)
+        self.Z *= self.λ * self.γ
+        self.Z[a] += self.ΔQ(s)
         self.W[a] += self.α*(rn + (1-done)*self.γ*self.Q(sn,an)- self.Q(s,a))*self.Z[a]
+
 
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
 class vtrueSarsaλ(vMDP):
@@ -255,18 +260,18 @@ class vtrueSarsaλ(vMDP):
     def step0(self):
         self.Z = self.W*0
         self.qo = 0
-        
+
     def online(self, s, rn,sn, done, a,an):
         α, γ, λ = self.α, self.γ, self.λ
         
         self.q = self.Q(s,a)
         self.qn= self.Q(sn,an)*(1-done)
         δ = rn + γ*self.qn - self.q
-        self.Z[a] = λ*γ*self.Z[a] + (1-α*λ*γ*self.Z[a].dot(s))*s
+        self.Z *= λ*γ
+        self.Z[a] += (1-α*λ*γ*self.Z[a]@s)*s
         
         self.W[a] += α*(δ + self.q - self.qo )*self.Z[a] - α*(self.q - self.qo)*s
         self.qo = self.qn
-
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
 '''
 This method combines both online and offline learning; it is similar to Sarsaλ but cleaner, as it separates the online stage from the delayed credit backpropagation stage. Therefore, it might be more desirable, particularly for sparse rewards
