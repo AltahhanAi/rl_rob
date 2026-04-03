@@ -637,7 +637,7 @@ def PG(MDP=MDP(MRP)):
         def Δlogπ(self, s, a):
             # (e := np.zeros(4))[1]=1 # gives array([0., 1., 0., 0.])
             (e := np.zeros(self.env.nA))[a] = 1 # warlus operator to get 1[a=At]
-            return (e - self.π(s))[:, None] # this is a vector of size (nA,1)
+            return (e - self.π(s))# this is a vector of size (nA,1)
 
     return PG
 
