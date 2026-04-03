@@ -613,9 +613,9 @@ def PG(MDP=MDP(MRP)):
         def τsoftmax(self, s):
             Qs = self.Q_(s)
             
-            if self.dτ < 1: self.τ = max(self.τmin, self.τ*self.dτ)              # exponential decay
-            if self.Tτ > 0: self.τ = max(self.τmin, self.τ0 - self.t_ / self.Tτ) # linear      decay
-                
+            if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                 # exponential decay
+            if self.Tτ > 0: self.τ = max(self.τmin, self.τ0 * (1 - self.t_ / self.Tτ) # linear      decay
+
             exp = np.exp(Qs/self.τ)
             maxAs = np.where(Qs==Qs.max())[0]
 
