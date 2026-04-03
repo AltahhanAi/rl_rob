@@ -607,13 +607,14 @@ def PG(MDP=MDP(MRP)):
             self.dτ = dτ
             self.Tτ = Tτ
             self.τmin = τmin
-
+            self.policy = self.τsoftmax
+            
         #----------------------------------- add some more policy types 易-------------------------------
         # returns a softmax action
         def τsoftmax(self, s):
             Qs = self.Q_(s)
             
-            if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                 # exponential decay
+            if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                  # exponential decay
             if self.Tτ > 0: self.τ = max(self.τmin, self.τ0 * (1 - self.t_ / self.Tτ)) # linear      decay
 
             exp = np.exp(Qs/self.τ)
