@@ -241,10 +241,9 @@ class Actor_Critic(PG()):
         π, γ, γt, α, τ, t = self.π, self.γ, self.γt, self.α, self.τ, self.t
         δ = rn + (1- done)*γ*self.V[sn] - self.V[s]  # TD error is based on the critic estimate
 
-        self.V[s]   += α*δ                           # critic
-        self.Q[s,a] += α*δ*(1- π(s,a))*γt/τ          # actor
+        self.V[s] += α*δ                    # critic
+        self.Q[s] += α*δ*Δlogπ(s,a)*γt/τ    # actor
         self.γt *= γ
-
 
 '''
  Now some Experiments
