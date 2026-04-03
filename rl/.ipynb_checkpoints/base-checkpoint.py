@@ -598,7 +598,7 @@ def MDP(MRP=MRP):
 '''
 def PG(MDP=MDP(MRP)):
     class PG(MDP):
-        def __init__(self, τ=1, τmin=.01, dτ=1, Tτ=0, **kw):
+        def __init__(self, αv=None, αq=None, τ=1, τmin=.01, dτ=1, Tτ=0, **kw):
             if 'γ' not in kw: kw['γ'] = .98 # not strictly necessary but to avoid future issues if we decided to inherit from MRP
             super().__init__(**kw)
             # set up hyperparameters
@@ -608,7 +608,10 @@ def PG(MDP=MDP(MRP)):
             self.Tτ = Tτ
             self.τmin = τmin
             self.policy = self.τsoftmax
-            
+
+            self.αv = αv if αv is not None else self.α*10
+            self.αq = αq if αq is not None else self.α
+        
         #----------------------------------- add some more policy types 易-------------------------------
         # returns a softmax action
         def τsoftmax(self, s):
