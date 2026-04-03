@@ -120,9 +120,9 @@ class vTDnf(vMRP):
 # ======================================= control master class==========================================
 
 class vMDP(MDP(vMRP)):
-    # def __init__(**kw):
-    #     if 'γ' not in kw: kw['γ'] = .98 
-    #     super().__init__(**kw)
+    def __init__(self, **kw):
+        if 'γ' not in kw: kw['γ'] = .98 
+        super().__init__(**kw)
 
     def init_(self):
         self.w = np.ones(self.env.nF)*self.v0
