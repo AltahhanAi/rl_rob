@@ -73,20 +73,20 @@ class REINFORCE(PG()):
         self.store = True
     
     def offline(self):
-        Δlogπ, γ, α, τ = self.Δlogπ, self.γ, self.α, self.τ
+        Δlogπ, τ,  γ, αv, αq = self.Δlogπ, self.τ, self.γ, self.αv, self.αq
         # obtain the return for the latest episode
         Gt = 0
-        γt = γ**self.t                  # efficient way to calculate powers of γ backwards
-        for t in range(self.t, -1, -1): # reversed to make it easier to calculate Gt
+        γt = γ**self.t                          # efficient way to calculate powers of γ backwards
+        for t in range(self.t, -1, -1):         # reversed to make it easier to calculate Gt
             s = self.s[t]
             a = self.a[t]
             rn = self.r[t+1]
             
             Gt = γ*Gt + rn
             δ = Gt - self.V[s]
-            
-            self.V[s] += α*δ
-            self.Q[s] += α*δ*Δlogπ(s,a)*γt/τ
+
+            self.V[s] += αv*δ
+            self.Q[s] += αq*δ*(γt/τ)*Δlogπ(s,a) # update all actions becayse softmax derivative involves all actions
             γt /= γ
 
 '''
@@ -238,11 +238,11 @@ class Actor_Critic(PG()):
         self.γt = 1 # powers of γ, must be reset at the start of each episode
     
     def online(self, s, rn,sn, done, a,an): 
-        π, γ, γt, α, τ, t = self.π, self.γ, self.γt, self.α, self.τ, self.t
+        Δlogπ, τ,  γ, γt, αv, αq = self.Δlogπ, self.τ, self.γ, self.γt, self.αv, self.αq
         δ = rn + (1- done)*γ*self.V[sn] - self.V[s]  # TD error is based on the critic estimate
 
-        self.V[s] += α*δ                    # critic
-        self.Q[s] += α*δ*Δlogπ(s,a)*γt/τ    # actor
+        self.V[s] += αv*δ                    # critic
+        self.Q[s] += αq*δ*Δlogπ(s,a)*γt/τ    # actor
         self.γt *= γ
 
 '''
