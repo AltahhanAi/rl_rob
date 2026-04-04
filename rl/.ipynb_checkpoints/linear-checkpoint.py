@@ -233,9 +233,9 @@ class vSarsaλ(vMDP):
 
     def online(self, s, rn,sn, done, a,an):
         # decay eligibility traces for all actions first, then update the trace for the selected action
-        self.Z *= self.λ * self.γ
+        self.Z    *= self.λ * self.γ
         self.Z[a] += self.ΔQ(s)
-        self.W += self.α*(rn + (1-done)*self.γ*self.Q(sn,an)- self.Q(s,a))*self.Z
+        self.W    += self.α*(rn + (1-done)*self.γ*self.Q(sn,an)- self.Q(s,a))*self.Z
 
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
 class vtrueSarsaλ(vMDP):
@@ -252,14 +252,14 @@ class vtrueSarsaλ(vMDP):
         
         α, γ, λ = self.α, self.γ, self.λ
         
-        self.q = self.Q(s,a)
-        self.qn= self.Q(sn,an)*(1-done)
+        self.q  = self.Q(s,a)
+        self.qn = self.Q(sn,an)*(1-done)
         δ = rn + γ*self.qn - self.q
         self.Z    *= λ*γ
         self.Z[a] += (1 - α*λ*γ*self.Z[a]@s)*s
 
-        self.W    += α *(self.q - self.qo +δ) * self.Z
-        self.W[a] -= α *(self.q - self.qo) * s
+        self.W    += α *(self.q - self.qo + δ) * self.Z
+        self.W[a] -= α *(self.q - self.qo    ) * s
 
         self.qo = self.qn
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
