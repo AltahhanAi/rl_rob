@@ -328,7 +328,7 @@ class vPG(PG(vMDP)):
 
 # =========================================================================================================
 
-class vPGc(vMDP):
+class vPGc(PG(vMDP)):
     def __init__(self, αv=None, αq=None, μ0=0, σ=1, σmin=.01, dσ=1, Tσ=0, **kw):
         super().__init__(**kw)
         self.μ0 = μ0
