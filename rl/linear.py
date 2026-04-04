@@ -357,11 +357,7 @@ class vPG(vMDP):
         
         Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
         return Δlogπ
-    
-    # This function is for the softmax; it extends the softmax Δlogπ to a linear approximation. 
-    # This is only valid for softmax, use the usual Δlogπ for Gaussian
-    def Δlogπ_(self, s, a):  # ∇ log π(s,a)
-        return super().Δlogπ(s,a)[:, None] @ s[None, :] 
+
 # -------------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning continuos actions------------------------
 # In the linear case, the actions are usually continuous
 class vActor_Critic(vPG):

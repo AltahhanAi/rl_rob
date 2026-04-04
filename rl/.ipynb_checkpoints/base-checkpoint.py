@@ -643,8 +643,9 @@ def PG(MDP=MDP(MRP)):
             (e := np.zeros(self.env.nA))[a] = 1 # warlus operator to get 1[a=At]
             return e - self.π(s)                # (nA,)
 
-        def Δlogπ_(self, s, a): 
-            return self.Δlogπ(s, a)[:, None]    # (nA, 1)
+        # This function is for the softmax; it extends the softmax Δlogπ to a linear approximation. 
+        def Δlogπ_(self, s, a):  # ∇ log π(s,a)
+            return self.Δlogπ(s,a)[:, None] @ s[None, :] 
             
     return PG
 
