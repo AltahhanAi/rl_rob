@@ -136,9 +136,10 @@ LunarLander = {
     'low': (-1.5, -0.2, -2.0, -2.0, -1.5, -3.0, 0.0, 0.0),
     'high': (1.5, 1.5, 2.0, 2.0, 1.5, 3.0, 1.0, 1.0),
 
-    'n_tiles': (6, 6, 6, 6, 6, 6, 2, 2),
+    # 'n_tiles': (6, 6, 6, 6, 6, 6, 2, 2),
+    'n_tiles': (4, 4, 4, 4, 4, 4, 2, 2),
     'n_tilings': 8,
-    'hash_size': 32768,
+    'hash_size': 16384, # 32768, 
 }
 # -----------------------------------continuous actions and observation environments--------------------------------------
 
@@ -174,7 +175,8 @@ Pendulum = {
     # tile coding related..........................
     'low': (-1.0, -1.0, -8.0),
     'high': (1.0, 1.0, 8.0),
-    'n_tiles': (8, 8, 8),
+    # 'n_tiles': (8, 8, 8),
+    'n_tiles':   (4, 4, 16),   # finer velocity resolution
     'n_tilings': 8,
     'hash_size': 4096,
     
