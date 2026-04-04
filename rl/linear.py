@@ -116,6 +116,7 @@ class vMDP(MDP(vMRP)):
     def init_(self):
         self.w = np.ones(self.env.nF)*self.v0
         self.W = np.ones((self.env.nA, self.env.nF))*self.q0
+        self.Θ = self.W
         
         self.V_ = self.V
         self.Q_ = self.Q
@@ -349,7 +350,7 @@ class vPGc(vMDP):
         if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ)) # linear      decay
 
         μ = self.μ_π(s) # ϴ @ s
-        σ = self.σ  # passed by user, not learned for simplicity
+        σ = self.σ      # passed by user, not learned for simplicity
         
         # sample an action value from the Gaussian
         a = np.random.normal(μ, σ) # a = μ + σ * randn(*μ.shape)
@@ -367,10 +368,10 @@ class vPGc(vMDP):
     # returns the log of π: mainly for reference and will not be called directly, instead we need ∇logπ 
     def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
 
-        μ = self.μ_π(s)     # ϴ @ s
-        σ = self.σ_π(s)     # W @ s
+        μ = self.μ_π(s)     # is     ϴ @ s
+        σ = self.σ_π(s)     # can be W @ s
 
-        logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - 0.5*np.log(2*np.pi)
+        logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - .5*np.log(2*np.pi)
         return np.sum(logπ)
 
     # we should have used ∇ , but Python does not like it

@@ -598,7 +598,7 @@ def MDP(MRP=MRP):
 '''
 def PG(MDP=MDP(MRP)):
     class PG(MDP):
-        def __init__(self, αv=None, αq=None, τ=1, τmin=.01, dτ=1, Tτ=0, **kw):
+        def __init__(self, αv=None, αq=None, τ=1, τmin=.01, dτ=1, Tτ=0, h0=0, **kw):
             if 'γ' not in kw: kw['γ'] = .98 # not strictly necessary but to avoid future issues if we decided to inherit from MRP
             super().__init__(**kw)
             # set up hyperparameters
@@ -612,16 +612,25 @@ def PG(MDP=MDP(MRP)):
             self.αv = αv if αv is not None else self.α*10
             self.αq = αq if αq is not None else self.α
         
-        #----------------------------------- add some more policy types 易-------------------------------
+            # self.H = np.ones((self.env.nS, self.env.nA))*self.h0
+            self.H = self.Q        # replace this in the future with the above to separate H preference and Q table
+            # self.H_= self.Q_
+        
+        # useful for inheritance, gives us a vector of action values
+        def H_(self, s=None, a=None):
+            return self.Q_(s,a)   # replace this line with the next
+            # return self.H[s] if s is not None else self.H
+            
+        #----------------------------------- add some more policy types 易-------------------------------    
         # returns a softmax action
         def τsoftmax(self, s):
-            Qs = self.Q_(s)
+            Hs = self.H_(s)
             
             if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                  # exponential decay
             if self.Tτ > 0: self.τ = max(self.τmin, self.τ0 * (1 - self.t_ / self.Tτ)) # linear      decay
 
-            exp = np.exp(Qs/self.τ)
-            maxAs = np.where(Qs==Qs.max())[0]
+            exp = np.exp(Hs/self.τ)
+            maxAs = np.where(Hs==Hs.max())[0]
 
             a = choices(range(self.env.nA), weights=exp/exp.sum(), k=1)[0]
             self.isamax = a in maxAs
@@ -632,8 +641,8 @@ def PG(MDP=MDP(MRP)):
         # in PG  π() returns probabilities according to a τsoftmax, 
         
         def π(self, s, a=None):
-            Qs = self.Q_(s)
-            exp = np.exp(Qs/self.τ)
+            Hs = self.H_(s)
+            exp = np.exp(Hs/self.τ)
             return exp/exp.sum() if a is None else (exp/exp.sum())[a]
     
         # we should have used ∇ , but Python does not like it

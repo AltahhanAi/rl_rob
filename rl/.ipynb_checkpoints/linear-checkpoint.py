@@ -367,8 +367,8 @@ class vPGc(vMDP):
     # returns the log of π: mainly for reference and will not be called directly, instead we need ∇logπ 
     def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
 
-        μ = self.μ_π(s)     # ϴ @ s
-        σ = self.σ_π(s)     # W @ s
+        μ = self.μ_π(s)     # is     ϴ @ s
+        σ = self.σ_π(s)     # can be W @ s
 
         logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - 0.5*np.log(2*np.pi)
         return np.sum(logπ)
