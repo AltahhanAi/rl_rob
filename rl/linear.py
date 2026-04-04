@@ -483,6 +483,33 @@ def AC(_PG_=vPG):
 
 vActor_Critic   = AC(vPG)    # discrete  — softmax
 vActor_c_Critic = AC(vPGc)   # continuous — Gaussian
+
+# Actro critic with eligibility traces for the critic
+def AC_e(_PG_=vPG):
+    class vActor_Critic(_PG_):
+        def __init__(self, λ=0, **kw):
+            super().__init__(**kw)
+            self.λ = λ
+
+        def step0(self):
+            self.γt = 1
+            self.z  = self.w * 0  # critic eligibility trace
+
+        def online(self, s, rn, sn, done, a, _):
+            Δlogπ, ΔV, γ, γt, αv, αq, λ = self.Δlogπ, self.ΔV, self.γ, self.γt, self.αv, self.αq, self.λ
+            τ = getattr(self, 'τ', 1)
+
+            δ = (1-done)*γ*self.V(sn) + rn - self.V(s)
+
+            self.z   = λ*γ*self.z + ΔV(s)          # critic trace — accumulate
+            self.w  += αv*δ*self.z                  # critic — use trace
+            self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ        # actor  — no trace for now
+            self.γt *= γ
+
+    return vActor_Critic
+
+vActor_Critic_e   = AC(vPG)    # discrete  — softmax
+vActor_c_Critic_e = AC(vPGc)   # continuous — Gaussian
 # =========================a set of useful prediction comparisons =========================================
 
 def TDtiledwalk(ntilings):
