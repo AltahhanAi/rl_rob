@@ -655,7 +655,17 @@ def PG(MDP=MDP(MRP)):
             # (e := np.zeros(4))[1]=1 # gives array([0., 1., 0., 0.])
             (e := np.zeros(self.env.nA))[a] = 1 # warlus operator to get 1[a=At]
             return e - self.π(s)                # (nA,)
+
+        # override the render function
+        def render(self, rn=None, label='', **kw):
+            if rn is None: rn=self.rn
+            param = {}
+            if 'Q' in self.underhood: param = {'Q':self.H_()}  # 'maxQ' or 'Q'
+            if 'π' in self.underhood: param = {'π':self.H_()}  # 'π'
             
+            self.env.render(**param, 
+                            label=label+' reward=%d, t=%d, ep=%d'%(rn, self.t+1, self.ep+1), 
+                            underhood=self.underhood, **kw)
     return PG
 
 # =======================handy quick setting depending on the problem(prediction or control)==================
