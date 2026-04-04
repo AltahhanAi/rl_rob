@@ -15,7 +15,6 @@ from env.gym.discretised import *
 from math import floor
 # ======================================= prediction master class==========================================
 class vMRP(MRP):
-        
     # set up the weights, must be done whenever we train
     def init_(self):
         self.V_ = self.V
@@ -36,7 +35,6 @@ class vMRP(MRP):
 
 # ======================================= prediction algorithms==========================================
 class vMC(vMRP):
-    
     def init(self):
         self.store = True 
         
@@ -51,9 +49,7 @@ class vMC(vMRP):
             Gt = self.γ*Gt + rn
             self.w += self.α*(Gt - self.V(s))*self.ΔV(s)
 
-
 class vTDf(vMRP):
-    
     def init(self):
         self.store = True
         
@@ -73,7 +69,6 @@ class vTD(vMRP):
         self.w += self.α*(rn + (1-done)*self.γ*self.V(sn) - self.V(s))*self.ΔV(s)
 
 class vTDn(vMRP):
-
     def init(self):
         self.store = True # there is a way to save storage by using t%(self.n+1) but we left it for clarity
 
@@ -94,7 +89,6 @@ class vTDn(vMRP):
         self.w += self.α*(self.G(τ1,τn)+ (1-done)*self.γ**n *self.V(sn) - self.V(sτ))*self.ΔV(sτ)
         
 class vTDnf(vMRP):
-
     def init(self):
         self.store = True # offline method we need to store anyway
 
@@ -116,14 +110,9 @@ class vTDnf(vMRP):
             # n steps τ+1,..., τ+n inclusive of both ends
             self.w += self.α*(self.G(τ1,τn)+ (1-done)*self.γ**n *self.V(sn) - self.V(sτ))*self.ΔV(sτ)
 
-
 # ======================================= control master class==========================================
 
 class vMDP(MDP(vMRP)):
-    # def __init__(self, **kw):
-    #     if 'γ' not in kw: kw['γ'] = .98 
-    #     super().__init__(**kw)
-
     def init_(self):
         self.w = np.ones(self.env.nF)*self.v0
         self.W = np.ones((self.env.nA, self.env.nF))*self.q0
@@ -136,11 +125,8 @@ class vMDP(MDP(vMRP)):
         return W@s if s is not None else np.matmul(W, self.env.S_()).T 
 
     # we should have used ∇ , but Python does not like it
-    def ΔQ(self,s): 
-        return s
-    def ΔQ_(self, s):    
-        return s[None, :] # extends the dim for policy gradient class outer product
-
+    def ΔQ (self, s): return s
+    def ΔQ_(self, s): return s[None, :] # extends the dim for policy gradient class outer product
 
 # ======================================= control algorithms===================================
 class vMCC(vMDP):
@@ -246,10 +232,11 @@ class vSarsaλ(vMDP):
         self.Z = self.W*0
     # ----------------------------------------🌖 online learning ----------------------------------------
     def online(self, s, rn,sn, done, a,an):
+        # decay elegibility traces for all actions first then update the trace for the selected action
         self.Z *= self.λ * self.γ
-        self.Z[a] += self.ΔQ(s)
+        self.Z[a] += self.ΔQ(s)  
+        
         self.W[a] += self.α*(rn + (1-done)*self.γ*self.Q(sn,an)- self.Q(s,a))*self.Z[a]
-
 
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
 class vtrueSarsaλ(vMDP):
@@ -257,6 +244,7 @@ class vtrueSarsaλ(vMDP):
         super().__init__(**kw)
         self.λ = λ
         self.step = self.step_an # for Sarsa we want to decide the next action in time step t
+    
     def step0(self):
         self.Z = self.W*0
         self.qo = 0
@@ -267,7 +255,9 @@ class vtrueSarsaλ(vMDP):
         self.q = self.Q(s,a)
         self.qn= self.Q(sn,an)*(1-done)
         δ = rn + γ*self.qn - self.q
-        self.Z *= λ*γ
+
+        # decay elegibility traces for all actions first then update the trace for the selected action
+        self.Z *= λ*γ 
         self.Z[a] += (1-α*λ*γ*self.Z[a]@s)*s
         
         self.W[a] += α*(δ + self.q - self.qo )*self.Z[a] - α*(self.q - self.qo)*s
