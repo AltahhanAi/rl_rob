@@ -126,7 +126,7 @@ class vMDP(MDP(vMRP)):
 
     # we should have used ∇ , but Python does not like it
     def ΔQ (self, s): return s
-    def ΔQ_(self, s): return s[None, :] # extends the dim for policy gradient class outer product
+    # def ΔQ_(self, s): return s[None, :] # extends the dim for policy gradient class outer product
 
 # ======================================= control algorithms===================================
 class vMCC(vMDP):
@@ -350,14 +350,18 @@ class vPG(vMDP):
 
     # we should have used ∇ , but Python does not like it
     # gradient of the log of the policy π that appears in the **policy gradient theorem**
-    def Δlogπ(self, s, a):  # pr(a|s)
+    def Δlogπ(self, s, a):  # ∇ log π(s,a)
         μ = self.μ_π(s)     # ϴ @ s
         σ = self.σ_π(s)     # W @ s
         a = np.atleast_1d(a)
         
         Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
         return Δlogπ
-        
+    
+    # This function is for the softmax; it extends the softmax Δlogπ to a linear approximation. 
+    # This is only valid for softmax, use the usual Δlogπ for Gaussian
+    def Δlogπ_(self, s, a):  # ∇ log π(s,a)
+        return super().Δlogπ(s,a)[:, None] @ s[None, :] 
 # -------------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning continuos actions------------------------
 # In the linear case, the actions are usually continuous
 class vActor_Critic(vPG):
