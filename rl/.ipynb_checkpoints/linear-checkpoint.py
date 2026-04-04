@@ -298,9 +298,10 @@ class vSarsa_online_offline(vMDP):
 '''
 
 class vPG(vMDP):
-    def __init__(self, μ0=0, αv=None, αq=None, **kw):
+    def __init__(self, μ0=0, σ=.1, αv=None, αq=None, **kw):
         super().__init__(**kw)
         self.μ0 = μ0
+        self.σ = σ
         self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
 
         self.αv = αv if αv is not None else self.α*10
@@ -312,24 +313,28 @@ class vPG(vMDP):
     # a here represents the action component index, not an action value or an action index
     # As we can see, this parametrisation for the μ means we are parametrising the policy.
     def μ_π(self, s, a=None):
+        # ϴ @ s
         ϴ = self.ϴ if a is None else self.ϴ[a]
         return  np.atleast_1d(ϴ@s)
+        
+    def σ_π(self, s, a=None):
+        # W @ s
+        return self.σ # fixed σ here, passed by user, not learned for simplicity, the function defined for extensibility
     #------------------------------------- continuous policy 🧠------------------------------------
     # samples a Gaussian policy π to obtain a continuous action value, or a vector of Gaussian action component values
     def Gaussian(self, s):
-        μ = self.μ_π(s)# ϴ @ s
-        σ = self.env.σ  # comes from env, not learned for simplicity
+        μ = self.μ_π(s) # ϴ @ s
+        σ = self.σ  # passed by user, not learned for simplicity
         
         # sample an action value from the Gaussian
         a = np.random.normal(μ, σ) # a = μ + σ * randn(*μ.shape)
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)  # clip for safety          
         return np.atleast_1d(a)
 
-    
     # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
-    def π(self, s, a):  # pr(a|s)
-        μ = self.μ_π(s) # ϴ @ s
-        σ = self.env.σ  # comes from env, not learned for simplicity
+    def π(self, s, a):     # pr(a|s)
+        μ = self.μ_π(s)    # ϴ @ s
+        σ = self.σ_π(s)    # W @ s
         
         p = (1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2))
         return np.prod(p)
@@ -338,16 +343,16 @@ class vPG(vMDP):
     def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
 
         μ = self.μ_π(s)     # ϴ @ s
-        σ = self.env.σ      # comes from env, not learned for simplicity
+        σ = self.σ_π(s)     # W @ s
 
         logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - 0.5*np.log(2*np.pi)
         return np.sum(logπ)
 
     # we should have used ∇ , but Python does not like it
     # gradient of the log of the policy π that appears in the **policy gradient theorem**
-    def Δlogπ(self, s, a):   # pr(a|s)
-        μ = self.μ_π(s)      # ϴ @ s
-        σ = self.env.σ       # comes from env, not learned for simplicity
+    def Δlogπ(self, s, a):  # pr(a|s)
+        μ = self.μ_π(s)     # ϴ @ s
+        σ = self.σ_π(s)     # W @ s
         a = np.atleast_1d(a)
         
         Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
