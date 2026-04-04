@@ -116,7 +116,6 @@ class vMDP(MDP(vMRP)):
     def init_(self):
         self.w = np.ones(self.env.nF)*self.v0
         self.W = np.ones((self.env.nA, self.env.nF))*self.q0
-        self.Θ = self.W
         
         self.V_ = self.V
         self.Q_ = self.Q
@@ -126,8 +125,8 @@ class vMDP(MDP(vMRP)):
         return W@s if s is not None else np.matmul(W, self.env.S_()).T 
 
     # we should have used ∇ , but Python does not like it
-    def ΔQ (self, s): return s
-    # def ΔQ_(self, s): return s[None, :] # extends the dim for policy gradient class outer product
+    def ΔQ (self, s): 
+        return s
 
 # ======================================= control algorithms===================================
 class vMCC(vMDP):
@@ -303,6 +302,23 @@ class vPG(PG(vMDP)):
         self.αv = αv if αv is not None else self.α*10
         self.αq = αq if αq is not None else self.α
         self.policy = self.τsoftmax
+
+    def init_(self):
+        self.w = np.ones(self.env.nF)*self.v0
+        self.W = np.ones((self.env.nA, self.env.nF))*self.q0
+        self.Θ = np.ones((self.env.nA, self.env.nF))*self.h0
+        
+        self.V_ = self.V
+        self.Q_ = self.Q
+        self.H_ = self.H  # for softmax, not for Gaussian
+    
+    def H(self, s=None, a=None):
+        Θ = self.Θ if a is None else self.Θ[a]
+        return Θ@s if s is not None else np.matmul(Θ, self.env.S_()).T 
+
+    # we should have used ∇ , but Python does not like it
+    def ΔH (self, s): 
+        return s
         
     # This function is for the softmax; it extends the softmax Δlogπ to a linear approximation. 
     def Δlogπ(self, s, a):  # ∇ log π(s,a)
@@ -322,7 +338,6 @@ class vPGc(vMDP):
         self.Tσ = Tσ
         self.σmin = σmin
 
-        
         self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
 
         self.αv = αv if αv is not None else self.α*10
@@ -330,6 +345,15 @@ class vPGc(vMDP):
         
         # Gaussian is the default policy to sample an action from for Policy Gradient methods
         self.policy = self.Gaussian
+    
+    def init_(self):
+        self.w = np.ones(self.env.nF)*self.v0
+        self.W = np.ones((self.env.nA, self.env.nF))*self.q0
+        self.Θ = np.ones((self.env.nA, self.env.nF))*self.h0
+        
+        self.V_ = self.V
+        self.Q_ = self.Q
+        # self.H_ = self.H  # for softmax, not for Gaussian
         
     # a here represents the action component index, not an action value or an action index
     # As we can see, this parametrisation for the μ means we are parametrising the policy.
