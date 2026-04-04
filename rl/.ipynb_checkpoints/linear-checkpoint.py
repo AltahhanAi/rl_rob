@@ -289,15 +289,26 @@ class vSarsa_online_offline(vMDP):
 '''
     overriding  π() in parent class MDP: 
     in MDP  π() returns probabilities according to an εgreedy     [ not used in discrete action update]
-    in PG   π() returns probabilities according to a τsoftmax     [(1-π) used in discrete action update]
-    in vPG  π() returns probabilities according to a Gaussian     [ not used in continuous action update]
+    in vPG  π() returns probabilities according to a τsoftmax     [(1-π) used in discrete action update]
+    in vPGc π() returns probabilities according to a Gaussian     [ not used in continuous action update]
     
     Continuous action may comprise multiple components, each with a continuous value.
     The mean is calculated via μ_() via W, which assigns to each action component a separate 
     weight W[a], then perform W@s
 '''
+class vPG(PG(vMDP)):
+    def __init__(self, αv=None, αq=None, **kw):
+        super().__init__(**kw)
+        self.αv = αv if αv is not None else self.α*10
+        self.αq = αq if αq is not None else self.α
+        self.policy = softmax
+        
+    # This function is for the softmax; it extends the softmax Δlogπ to a linear approximation. 
+    def Δlogπ(self, s, a):  # ∇ log π(s,a)
+        return super().Δlogπ(s,a)[:, None] @ s[None, :] 
 
-class vPG(vMDP):
+    # The rest are defined witn the arent PG class
+class vPGc(vMDP):
     def __init__(self, μ0=0, σ=.1, αv=None, αq=None, **kw):
         super().__init__(**kw)
         self.μ0 = μ0
