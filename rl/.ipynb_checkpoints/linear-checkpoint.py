@@ -319,6 +319,7 @@ class vPGc(vMDP):
         self.σ0 = σ
         self.dσ = dσ
         self.Tσ = Tσ
+        self.σmin = σmin
 
         
         self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
