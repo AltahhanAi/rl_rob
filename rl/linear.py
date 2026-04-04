@@ -226,17 +226,16 @@ class vSarsaλ(vMDP):
     def __init__(self, λ=.5, **kw):
         super().__init__(**kw)
         self.λ = λ
-        self.step = self.step_an # for Sarsa we want to decide the next action in time step t
+        self.step = self.step_an # for Sarsa, we want to decide the next action in time step t
     
     def step0(self):
         self.Z = self.W*0
-    # ----------------------------------------🌖 online learning ----------------------------------------
+
     def online(self, s, rn,sn, done, a,an):
-        # decay elegibility traces for all actions first then update the trace for the selected action
+        # decay eligibility traces for all actions first, then update the trace for the selected action
         self.Z *= self.λ * self.γ
-        self.Z[a] += self.ΔQ(s)  
-        
-        self.W[a] += self.α*(rn + (1-done)*self.γ*self.Q(sn,an)- self.Q(s,a))*self.Z[a]
+        self.Z[a] += self.ΔQ(s)
+        self.W += self.α*(rn + (1-done)*self.γ*self.Q(sn,an)- self.Q(s,a))*self.Z
 
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
 class vtrueSarsaλ(vMDP):
@@ -248,19 +247,20 @@ class vtrueSarsaλ(vMDP):
     def step0(self):
         self.Z = self.W*0
         self.qo = 0
-
+        
     def online(self, s, rn,sn, done, a,an):
+        
         α, γ, λ = self.α, self.γ, self.λ
         
         self.q = self.Q(s,a)
         self.qn= self.Q(sn,an)*(1-done)
         δ = rn + γ*self.qn - self.q
+        self.Z    *= λ*γ
+        self.Z[a] += (1 - α*λ*γ*self.Z[a]@s)*s
 
-        # decay elegibility traces for all actions first then update the trace for the selected action
-        self.Z *= λ*γ 
-        self.Z[a] += (1-α*λ*γ*self.Z[a]@s)*s
-        
-        self.W[a] += α*(δ + self.q - self.qo )*self.Z[a] - α*(self.q - self.qo)*s
+        self.W    += α *(self.q - self.qo +δ) * self.Z
+        self.W[a] -= α *(self.q - self.qo) * s
+
         self.qo = self.qn
 # ------------------------ 🌖 multi-step, value function control, online learning -----------------------
 '''
