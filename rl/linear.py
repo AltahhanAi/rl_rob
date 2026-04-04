@@ -408,22 +408,54 @@ class vPGc(PG(vMDP)):
         Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
         return Δlogπ
 
-# -------------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning continuos actions------------------------
-# In the linear case, the actions are usually continuous
-class vActor_Critic(vPG):
+# --------------------  🌘  offline REINFORCE: policy gradient 🧠 control learning continuos actions------------
+def ENFORCE(_PG_=vPG):
+    class vREINFORCE(_PG_):
+        def init(self): 
+            self.store = True
     
-    def __init__(self, α_critic, α_actor, **kw):
-        self.α_critic = α_critic
-        self.α_actor  = α_actor
-        super().__init__(**kw)
-        
-    def online(self, s, rn,sn, done, a,an): 
-        γ, α_critic, α_actor = self.γ, self.α_critic, self.α_actor
-        δ = rn + (1- done)*γ*self.V(sn) - self.V(s)  # TD error is based on the critic estimate
+        def offline(self):
+            # Δlogπ vPG performs outer prodcut Δlogπ(s,a)@ΔQ(s)
+            Δlogπ, ΔV, τ, γ, αv, αq = self.Δlogπ, self.ΔV, self.τ, self.γ, self.αv, self.αq
+            
+            # obtain the return for the latest episode
+            Gt = 0
+            γt = γ**self.t                  # efficient way to calculate powers of γ backwards
+            for t in range(self.t, -1, -1): # reversed to make it easier to calculate Gt
+                s = self.s[t]
+                a = self.a[t]
+                rn = self.r[t+1]
+                
+                Gt = γ*Gt + rn
+                δ = Gt - self.V(s)
+    
+                self.w += αv*δ*ΔV(s)
+                self.Θ += αq*δ*Δlogπ(s,a)*(γt/τ) # @ outer product: update all actions; ∇π involves all actions
+                γt /= γ
+    
+    return vREINFORCE
 
-        self.w += α_critic*δ*self.ΔV(s)              # critic
-        self.ϴ += α_actor *δ*self.Δlogπ(s,a)         # actor
+vREINFORCE  = ENFORCE(vPG)    # discrete  — softmax
+vREINFORCEc = ENFORCE(vPGc)   # continuous — Gaussian 
 
+# -------------- 🌖 online Actor-Critic: policy gradient 🧠 control learning continuos actions--------------
+def AC(_PG_=vPG):
+    class vActor_Critic(_PG_):
+        def step0(self):
+            self.γt = 1 # powers of γ
+            
+        def online(self, s, rn,sn, done, a,_): 
+            # Δlogπ vPG performs outer prodcut Δlogπ(s,a)@ΔQ(s)
+            Δlogπ, ΔV, γ, γt, αv, αq, τ = self.Δlogπ, self.ΔV, self.γ, self.γt, self.αv, self.αq, getattr(self, 'τ', 1)
+            δ = (1- done)*γ*self.V(sn) + rn - self.V(s)    # TD error is based on the critic estimate
+            self.w  += αv*δ*ΔV(s)                 # critic
+            self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ       # actor  
+            self.γt *= γ
+    
+    return vActor_Critic
+    
+vActor_Critic  = AC(vPG)    # discrete  — softmax
+vActor_c_Critic = AC(vPGc)  # continuous — Gaussian 
     
 # =========================a set of useful prediction comparisons =========================================
 
