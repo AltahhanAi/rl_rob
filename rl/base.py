@@ -608,14 +608,18 @@ def PG(MDP=MDP(MRP)):
             self.Tτ = Tτ
             self.τmin = τmin
             self.policy = self.τsoftmax
+            self.h0 = h0
 
             self.αv = αv if αv is not None else self.α*10
             self.αq = αq if αq is not None else self.α
-        
+
+        # set up the Q table
+        def init_(self):
+            super().init_() # initialises V and Q, and then we initialise H here
+            # comment this into have a separate H preference from the Q table
             # self.H = np.ones((self.env.nS, self.env.nA))*self.h0
-            self.H = self.Q        # replace this in the future with the above to separate H preference and Q table
-            # self.H_= self.Q_
-        
+            self.H = self.Q  
+            
         # useful for inheritance, gives us a vector of action values
         def H_(self, s=None, a=None):
             return self.Q_(s,a)   # replace this line with the next
