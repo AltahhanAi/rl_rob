@@ -292,17 +292,20 @@ class vSarsa_online_offline(vMDP):
     in PG   π() returns probabilities according to a τsoftmax     [(1-π) used in discrete action update]
     in vPG  π() returns probabilities according to a Gaussian     [ not used in continuous action update]
     
-    Continuous action may have multiple components, each of which has a continuous value.
+    Continuous action may comprise multiple components, each with a continuous value.
     The mean is calculated via μ_() via W, which assigns to each action component a separate 
     weight W[a], then perform W@s
 '''
 
 class vPG(vMDP):
-    def __init__(self, μ0=0, **kw):
+    def __init__(self, μ0=0, αv=None, αq=None, **kw):
         super().__init__(**kw)
         self.μ0 = μ0
         self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
 
+        self.αv = αv if αv is not None else self.α*10
+        self.αq = αq if αq is not None else self.α
+        
         # Gaussian is the default policy to sample an action from for Policy Gradient methods
         self.policy = self.Gaussian
         
