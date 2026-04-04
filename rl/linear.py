@@ -301,7 +301,7 @@ class vPG(PG(vMDP)):
         super().__init__(**kw)
         self.αv = αv if αv is not None else self.α*10
         self.αq = αq if αq is not None else self.α
-        self.policy = softmax
+        self.policy = τsoftmax
         
     # This function is for the softmax; it extends the softmax Δlogπ to a linear approximation. 
     def Δlogπ(self, s, a):  # ∇ log π(s,a)
