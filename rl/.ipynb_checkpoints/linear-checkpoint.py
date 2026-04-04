@@ -307,12 +307,20 @@ class vPG(PG(vMDP)):
     def Δlogπ(self, s, a):  # ∇ log π(s,a)
         return super().Δlogπ(s,a)[:, None] @ s[None, :] 
 
-    # The rest are defined witn the arent PG class
+    # The rest are defined with the arent PG class
+
+# =========================================================================================================
+
 class vPGc(vMDP):
-    def __init__(self, μ0=0, σ=.1, αv=None, αq=None, **kw):
+    def __init__(self, αv=None, αq=None, μ0=0, σ=1, σmin=.01, dσ=1, Tσ=0, **kw):
         super().__init__(**kw)
         self.μ0 = μ0
         self.σ = σ
+        self.σ0 = σ
+        self.dσ = dσ
+        self.Tσ = Tσ
+
+        
         self.ϴ = np.ones((self.env.nA, self.env.nF))*self.μ0
 
         self.αv = αv if αv is not None else self.α*10
@@ -331,9 +339,14 @@ class vPGc(vMDP):
     def σ_π(self, s, a=None):
         # W @ s
         return self.σ # fixed σ here, passed by user, not learned for simplicity, the function defined for extensibility
+        
     #------------------------------------- continuous policy 🧠------------------------------------
     # samples a Gaussian policy π to obtain a continuous action value, or a vector of Gaussian action component values
     def Gaussian(self, s):
+
+        if self.dσ < 1: self.σ = max(self.σmin, self.σ  *self.dσ)                  # exponential decay
+        if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ)) # linear      decay
+
         μ = self.μ_π(s) # ϴ @ s
         σ = self.σ  # passed by user, not learned for simplicity
         
