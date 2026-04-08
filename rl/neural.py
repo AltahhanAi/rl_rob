@@ -197,10 +197,9 @@ In neural nets, usually we would want to set the hidden to 0, but not the final,
 '''
 class nnMRP(MRP):
     def __init__(self, 
-                 h1=None, h2=None, 
                  feat_layers=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], # (filters/channels, kernel size, stride)
                  is_final_layer_zero=False,                        # useful for setting the default weights of the final layer to 0 
-                 nF=512, nbuffer=10000,                            # nF n_feature of penultimate layer, nbuffer is the replay buffer size
+                 nF=512, nbuffer=10000,                            # nF n_feature penultimate layer, nbuffer is the replay buffer size
                  nbatch=32, rndbatch=True, endbatch=1,             # mini batch size, rand batch sampling, non-rand samples at its end
                  save_weights=1000, load_weights=False, create_vN=True, **kw):
 
@@ -234,7 +233,7 @@ class nnMRP(MRP):
         else:
             self.vN.init_weights(self.is_final_layer_zero)
             print('training afresh so resetting the weights for vN')
-        self.V = self.V_
+        self.V_ = self.V
 
     #--------------------------------------Neural Network model related---------------------------
     ''' create a model for the V or the Q function based on net_str.
@@ -262,7 +261,7 @@ class nnMRP(MRP):
         model.print_model_summary(net_str)
         return model
 
-    def V_(self, s):
+    def V(self, s):
         return self.vN.predict(s, self.state_dim)
 
     def allocate(self):
@@ -320,9 +319,10 @@ class nnMDP(MDP(nnMRP)):
 
         self.qNn.eval() if self.create_qNn else None
 
-        self.Q = self.Q_
+        self.V_ = self.V
+        self.Q_ = self.Q
 
-    # this is needed to calculate the Q values for single state and its the policy
+    # this is needed to calculate the Q values for a single state and its policy
     # if we do doube q learning then we will need it to deal with a batch
     def Q_(self, s):
         # if s is None: s = self.env.S_()
