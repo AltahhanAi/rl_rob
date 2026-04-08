@@ -152,6 +152,7 @@ class nnModel(nn.Module):
                     init.zeros_(layer.bias)
     
         if is_final_layer_zero and isinstance(self.layers[-1], nn.Linear):
+            print('setting final layers weights to 0')
             init.zeros_(self.layers[-1].weight)
              # init.zeros_(self.layers[-1].bias)    # already done before Set the bias of the last layer to zero
     
