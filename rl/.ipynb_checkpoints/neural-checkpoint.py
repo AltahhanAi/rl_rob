@@ -60,7 +60,7 @@ from math import prod
 '''
 
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4):
+    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str=''):
         # register as a subclass of nn.Module and create a list of layers
         super().__init__()
         self.layers = nn.ModuleList()
@@ -86,6 +86,7 @@ class nnModel(nn.Module):
         self.update_msg = 'update %s network weights...........! at %d'
         self.saving_msg = 'saving %s network weights to disk...!'
         self.loading_msg = 'loading %s network weights from disk...!'
+        self.net_str = net_str
 
     # Append feature extraction layers to the model, either CNN or MLP
     def append_feat_layers(self, feat_in, inp_dim):
@@ -142,6 +143,7 @@ class nnModel(nn.Module):
             return self(s) if s_batch else self(s)[0]
 
     def init_weights(self, is_final_layer_zero):
+        print(f'training afresh so resetting the weights {self.net_str}')
         gain = init.calculate_gain('relu')
         for layer in self.layers:
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
@@ -227,12 +229,7 @@ class nnMRP(MRP):
         if create_vN: self.vN = self.create_model('V', self.α)
 
     def init_(self):
-        if self.load_weights_: 
-            self.vN.load_weights('V')
-            print('loading weights for vN')
-        else:
-            self.vN.init_weights(self.is_final_layer_zero)
-            print('training afresh so resetting the weights for vN')
+        self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
         self.V_ = self.V
 
     #--------------------------------------Neural Network model related---------------------------
@@ -254,7 +251,8 @@ class nnMRP(MRP):
             feat_layers=self.feat_layers,
             nF=self.nF,
             out_dim=self.action_dim,
-            α=α
+            α=α,
+            net_str=net_str
         )
         # model = model.to(torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'))
 
@@ -308,15 +306,10 @@ class nnMDP(MDP(nnMRP)):
         self.qNn = self.create_model('Qn', self.α)  if create_qNn else None # α is not needed because we do not usually train this net
 
     def init_(self):
-        super().init_() if self.create_vN else None  # useful for actor-critic
+        if self.create_vN: # useful for QV-learning
+            self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
 
-        if self.load_weights_:
-            self.qN.load_weights('Q')
-            print('loading weights for qN')
-        else:
-            self.qN.init_weights(self.is_final_layer_zero)
-            print('training afresh so resetting the weights for qN')
-
+        self.qN.load_weights('Q') if self.load_weights_ else self.qN.init_weights(self.is_final_layer_zero)
         self.qNn.eval() if self.create_qNn else None
 
         self.V_ = self.V
