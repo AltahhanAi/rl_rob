@@ -322,14 +322,14 @@ class nnMDP(MDP(nnMRP)):
         self.V_ = self.V
         self.Q_ = self.Q
 
-    # this is needed to calculate the Q values for a single state and its policy
-    # if we do doube q learning then we will need it to deal with a batch
-    def Q_(self, s):
+    # This is needed to calculate the Q values for a single state and its policy
+    # If we do double Q learning, then we will need it to deal with a batch
+    def Q(self, s):
         # if s is None: s = self.env.S_()
         return self.qN.predict(s, self.state_dim)
 
     # only needed to calculate the targets for a batch of states
-    # if we do double q learning then we need it to deal with a single state
+    # if we do double Q learning, then we need it to deal with a single state
     def Qn(self, sn):
         return self.qNn.predict(sn, self.state_dim) if self.create_qNn else None
 
