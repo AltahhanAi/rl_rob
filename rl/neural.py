@@ -350,7 +350,7 @@ class DQN(nnMDP):
         targets[inds, a] = self.γ * Qn.max(1).values + rn # ; print('Qn = ', targets.squeeze().numpy().round(3), ' r = ', rn.numpy() )
         loss = self.qN.fit(Qs, targets)
 
-        if self.t_ % self.t_Qn == 0 and self.create_qNn:
+        if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_qNn:
             self.qNn.set_weights(self.qN, 'Q', self.t_)
 
         # print(f'loss = {round(loss,3)}')
@@ -360,7 +360,7 @@ class DQN(nnMDP):
 # usage example
 # nnqlearn = DQN(env=nnenv, \
 #                 episodes=300, \
-#                 α=1e-4, ε=0.1, γ=.95, \
+#                 α=1e-4, ε=0.1, γ=.95, I am running a few minutes late; my previous meeting is running over.
 #                 h1=0, h2=0, nF=32, \
 #                 nbuffer=5000, nbatch=32, rndbatch=False,\
 #                 self_path='DQN_exp', \
