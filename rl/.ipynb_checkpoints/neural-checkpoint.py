@@ -50,13 +50,13 @@ from math import prod
 
 # ===============================================================================================
 '''
-    The nnModel class is just a helper class to creater a neural network model 
+    The nnModel class is just a helper class to create a neural network model 
     that can be used for various tasks, including reinforcement learning. 
     It is built using PyTorch and can handle both convolutional neural networks (CNNs) 
     and multi-layer perceptrons (MLPs).
     The class allows for flexible configuration of the network architecture, including
     the number of layers, the number of filters, and the kernel size for CNNs.
-    The model can be used for both feature extraction and Q-learning tasks.
+    The model can be used for both feature extraction, Q-learning and actor-critic tasks.
 '''
 
 class nnModel(nn.Module):
@@ -192,14 +192,16 @@ class nnModel(nn.Module):
         print("╰─────────────────────────────────────────────────────────────╯")
 
 # ===============================================================================================
-
+'''
+In neural nets, usually we would want to set the hidden to 0, but not the final, as this will make sets of weights from previous layers identical
+'''
 class nnMRP(MRP):
     def __init__(self, 
                  h1=None, h2=None, 
-                 feat_layers=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], 
-                 is_final_layer_zero=False,
-                 nF=512, nbuffer=10000, 
-                 nbatch=32, rndbatch=True, endbatch=1,
+                 feat_layers=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], # (filters/channels, kernel size, stride)
+                 is_final_layer_zero=False,                        # useful for setting the default weights of the final layer to 0 
+                 nF=512, nbuffer=10000,                            # nF n_feature of penultimate layer, nbuffer is the replay buffer size
+                 nbatch=32, rndbatch=True, endbatch=1,             # mini batch size, rand batch sampling, non-rand samples at its end
                  save_weights=1000, load_weights=False, create_vN=True, **kw):
 
         super().__init__(**kw)
@@ -207,7 +209,7 @@ class nnMRP(MRP):
         self.nF = nF
         self.is_final_layer_zero = is_final_layer_zero
         # feat_layers provides a much better flexibility than h1 and h2
-        # h1, h2 are kept her for compatibility with old usage, but feel 
+        # h1, h2 are kept here for compatibility with old usage, but feel 
         # free to ignore them and just use feat_layers
         if (h1 or h2) is not None:
             feat_layers = []
@@ -222,7 +224,7 @@ class nnMRP(MRP):
         self.nbatch = nbatch      # batch size
         self.rndbatch = rndbatch  # random batch if False, batch is sampled from the end of the buffer
         # endbatch works when rndbatch is True: 
-        # sets how many of the latest transitions you want to always add to the end of the smapled batch
+        # sets how many of the latest transitions you want to always add to the end of the sampled batch
         # the count of nbatch includes also endbatch
         
         self.buffer = deque(maxlen=self.nbuffer)
