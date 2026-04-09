@@ -299,7 +299,8 @@ class nnMRP(MRP):
         rn = torch.stack(rn)
         sn = torch.stack(sn)
         dones = torch.stack(dones)
-        inds = torch.arange(self.nbatch)
+        # inds = torch.arange(self.nbatch)
+        inds = torch.arange(len(samples))
 
         return (s, a, rn, sn, dones), inds
 
