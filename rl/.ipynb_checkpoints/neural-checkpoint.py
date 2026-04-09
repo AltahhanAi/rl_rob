@@ -285,9 +285,12 @@ class nnMRP(MRP):
     def batch(self):
         endbatch = self.endbatch
 
-        samples = sample(self.buffer, self.nbatch-endbatch) if self.rndbatch else self.slice_(self.buffer, self.nbatch)
-        # samples.extend(self.buffer[-endbatch:])  # always add the latest endbatch items from teh buffer
-        samples.extend(self.slice_(self.buffer, self.endbatch)) # always add the latest endbatch items from teh buffer
+        if len(self.buffer) > 1:
+            samples = sample(self.buffer, self.nbatch-endbatch) if self.rndbatch else self.slice_(self.buffer, self.nbatch)
+            # samples.extend(self.buffer[-endbatch:])  # always add the latest endbatch items from teh buffer
+            samples.extend(self.slice_(self.buffer, self.endbatch)) # always add the latest endbatch items from teh buffer
+        else:
+            samples = list(self.buffer)  # just take the single item directly, no random.sample call
 
         s, a, rn, sn, dones = zip(*samples)
         # Tensors already — just stack
