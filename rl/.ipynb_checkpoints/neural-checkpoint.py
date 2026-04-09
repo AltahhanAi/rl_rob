@@ -60,10 +60,11 @@ from math import prod
 '''
 
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str=''):
+    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str='', bias=False):
         # register as a subclass of nn.Module and create a list of layers
         super().__init__()
         self.layers = nn.ModuleList()
+        self.bias = bias
 
         # feat_layer can be a mixture of cnn and fully connected layers
         self.feat_layers = feat_layers
@@ -75,7 +76,7 @@ class nnModel(nn.Module):
 
         # Q-learning head
         self.layers.append(nn.Linear(feat_in, nF)) if nF else None
-        self.layers.append(nn.Linear(nF if nF else feat_in, out_dim))  # Final output layer, no ReLU
+        self.layers.append(nn.Linear(nF if nF else feat_in, out_dim, bias=self.bias))  # Final output layer, no ReLU
         self.α = α
         # done in the reset
         # Initialise the weights and biases of the last fully connected layer (output layer) to 0
@@ -149,12 +150,12 @@ class nnModel(nn.Module):
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
                 init.xavier_normal_(layer.weight, gain=gain) # use init.xavier_normal_, xavier_uniform_,or init.kaiming_uniform_
                 if layer.bias is not None:
-                    init.zeros_(layer.bias)
+                    init.zeros_(layer.bias) # we always set the bias to 0
     
         if is_final_layer_zero and isinstance(self.layers[-1], nn.Linear):
             print('setting final layers weights to 0')
             init.zeros_(self.layers[-1].weight)
-             # init.zeros_(self.layers[-1].bias)    # already done before Set the bias of the last layer to zero
+             # init.zeros_(self.layers[-1].bias)    # already done before 
     
         if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
         else:        self.optim = optim.SGD(self.parameters(), lr=self.α)
