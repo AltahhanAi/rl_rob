@@ -122,7 +122,7 @@ class nnModel(nn.Module):
         # print('fitting the neural net')
         self.train()
         self.optim.zero_grad()
-        loss = F.mse_loss(vals, targets)
+        loss = .5*F.mse_loss(vals, targets)
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None # only clip for CNN
         self.optim.step()
