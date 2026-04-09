@@ -124,7 +124,7 @@ class nnModel(nn.Module):
         self.optim.zero_grad()
         loss = F.mse_loss(vals, targets)
         loss.backward()
-        clip_grad_norm_(self.parameters(), max_norm=1.0)
+        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None # only clip for CNN
         self.optim.step()
         return loss.item()
 
