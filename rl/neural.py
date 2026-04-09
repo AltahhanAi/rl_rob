@@ -60,11 +60,11 @@ from math import prod
 '''
 
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str='', bias=False):
+    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str='', last_layer_bias=False):
         # register as a subclass of nn.Module and create a list of layers
         super().__init__()
         self.layers = nn.ModuleList()
-        self.bias = bias
+        self.last_layer_bias = last_layer_bias
 
         # feat_layer can be a mixture of cnn and fully connected layers
         self.feat_layers = feat_layers
@@ -76,7 +76,7 @@ class nnModel(nn.Module):
 
         # Q-learning head
         self.layers.append(nn.Linear(feat_in, nF)) if nF else None
-        self.layers.append(nn.Linear(nF if nF else feat_in, out_dim, bias=self.bias))  # Final output layer, no ReLU
+        self.layers.append(nn.Linear(nF if nF else feat_in, out_dim, bias=self.last_layer_bias))  # Final output layer, no ReLU
         self.α = α
         # done in the reset
         # Initialise the weights and biases of the last fully connected layer (output layer) to 0
@@ -205,13 +205,14 @@ class nnMRP(MRP):
                  is_final_layer_zero=False,                        # useful for setting the default weights of the final layer to 0 
                  nF=512, nbuffer=10000,                            # nF n_feature penultimate layer, nbuffer is the replay buffer size
                  nbatch=32, rndbatch=True, endbatch=1,             # mini batch size, rand batch sampling, non-rand samples at its end
-                 save_weights=1000, load_weights=False, create_vN=True, **kw):
+                 save_weights=1000, load_weights=False, create_vN=True, last_layer_bias=False, **kw):
 
         super().__init__(**kw)
         self.create_vN = create_vN
         self.nF = nF
         self.is_final_layer_zero = is_final_layer_zero
         self.feat_layers = feat_layers
+        self.last_layer_bias = last_layer_bias
 
         if endbatch > nbatch: endbatch=nbatch-1
         self.endbatch = endbatch
@@ -228,7 +229,7 @@ class nnMRP(MRP):
         self.save_weights_ = save_weights
 
         self.t_ = 0
-        if create_vN: self.vN = self.create_model('V', self.α)
+        if create_vN: self.vN = self.create_model('V', self.α, self.last_layer_bias)
 
     def init_(self):
         self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
@@ -243,7 +244,7 @@ class nnMRP(MRP):
         You can change the activation functions. The model uses the usual mean squared error loss. 
     '''
 
-    def create_model(self, net_str, α):
+    def create_model(self, net_str, α, last_layer_bias):
         self.state_dim = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
         
@@ -254,7 +255,8 @@ class nnMRP(MRP):
             nF=self.nF,
             out_dim=self.action_dim,
             α=α,
-            net_str=net_str
+            net_str=net_str,
+            last_layer_bias=last_layer_bias
         )
         # model = model.to(torch.device('mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'))
 
@@ -304,8 +306,8 @@ class nnMDP(MDP(nnMRP)):
         super().__init__(create_vN=create_vN, **kw)
         self.create_qNn = create_qNn
 
-        self.qN = self.create_model('Q', self.α)
-        self.qNn = self.create_model('Qn', self.α)  if create_qNn else None # α is not needed because we do not usually train this net
+        self.qN = self.create_model('Q', self.α, self.last_layer_bias)
+        self.qNn = self.create_model('Qn', self.α, self.last_layer_bias)  if create_qNn else None # α is not needed target is not trained
 
     def init_(self):
         if self.create_vN: # useful for QV-learning
