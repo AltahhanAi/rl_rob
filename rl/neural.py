@@ -232,6 +232,7 @@ class nnMRP(MRP):
         if create_vN: self.vN = self.create_model('V', self.α, self.last_layer_bias)
 
     def init_(self):
+        torch.manual_seed(self.seed)
         self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
         self.V_ = self.V
 
@@ -310,6 +311,7 @@ class nnMDP(MDP(nnMRP)):
         self.qNn = self.create_model('Qn', self.α, self.last_layer_bias)  if create_qNn else None # α is not needed target is not trained
 
     def init_(self):
+        torch.manual_seed(self.seed)
         if self.create_vN: # useful for QV-learning
             self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
 
