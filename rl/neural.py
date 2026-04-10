@@ -60,7 +60,7 @@ from math import prod
 '''
 
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str='', last_layer_bias=False):
+    def __init__(self, inp_dim, feat_layers=[(16, 5, 2), 32], nF=128, out_dim=3, α=1e-4, net_str='', last_layer_bias=True):
         # register as a subclass of nn.Module and create a list of layers
         super().__init__()
         self.layers = nn.ModuleList()
@@ -74,7 +74,7 @@ class nnModel(nn.Module):
         feat_in = inp_dim[0]  # channels if image, feature dim otherwise
         feat_in = self.append_feat_layers(feat_in, inp_dim)
 
-        # Q-learning head
+        # Q-learning head, last_layer_bias=False allows us to get exact matching between 1-layer-net and linear class
         self.layers.append(nn.Linear(feat_in, nF)) if nF else None
         self.layers.append(nn.Linear(nF if nF else feat_in, out_dim, bias=self.last_layer_bias))  # Final output layer, no ReLU
         self.α = α
@@ -122,7 +122,7 @@ class nnModel(nn.Module):
         # print('fitting the neural net')
         self.train()
         self.optim.zero_grad()
-        loss = .5 * F.mse_loss(vals, targets, reduction='sum')/len(vals)  # so that we match exactly the linear with the neural case when we have 1 layer network
+        loss = .5 * F.mse_loss(vals, targets, reduction='sum')/len(vals)  # to get exact matching between 1-layer-net and linear class
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None # only clip for CNN
         self.optim.step()
@@ -205,7 +205,7 @@ class nnMRP(MRP):
                  is_final_layer_zero=False,                        # useful for setting the default weights of the final layer to 0 
                  nF=512, nbuffer=10000,                            # nF n_feature penultimate layer, nbuffer is the replay buffer size
                  nbatch=32, rndbatch=True, endbatch=1,             # mini batch size, rand batch sampling, non-rand samples at its end
-                 save_weights=1000, load_weights=False, create_vN=True, last_layer_bias=False, **kw):
+                 save_weights=1000, load_weights=False, create_vN=True, last_layer_bias=True, **kw):
 
         super().__init__(**kw)
         self.create_vN = create_vN

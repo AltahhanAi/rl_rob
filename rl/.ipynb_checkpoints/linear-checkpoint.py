@@ -508,8 +508,8 @@ def AC_e(_PG_=vPG):
 
     return vActor_Critic
 
-vActor_Critic_e   = AC(vPG)    # discrete  — softmax
-vActor_c_Critic_e = AC(vPGc)   # continuous — Gaussian
+vActor_Critic_e   = AC_e(vPG)    # discrete  — softmax
+vActor_c_Critic_e = AC_e(vPGc)   # continuous — Gaussian
 # =========================a set of useful prediction comparisons =========================================
 
 def TDtiledwalk(ntilings):
