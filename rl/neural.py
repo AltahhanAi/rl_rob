@@ -182,14 +182,19 @@ class nnModel(nn.Module):
         total_params = 0
         trainable_params = 0
 
-        for i, (name, param) in enumerate(self.named_parameters()):
-            param_count = param.numel()
-            total_params += param_count
-            trainable = param.requires_grad
-            if trainable:
-                trainable_params += param_count
+        for i, layer in enumerate(self.layers):
+            param_count = sum(p.numel() for p in layer.parameters())
+            trainable = all(p.requires_grad for p in layer.parameters())
+            print(f"│ {i:2d} │ {str(layer):<26} │ {param_count:10,} │ {'Yes' if trainable else 'No ':<12} │")
+            
+        # for i, (name, param) in enumerate(self.named_parameters()):
+        #     param_count = param.numel()
+        #     total_params += param_count
+        #     trainable = param.requires_grad
+        #     if trainable:
+        #         trainable_params += param_count
 
-            print(f"│ {i:2d} │ {name:<26} │ {param_count:10,} │ {'Yes' if trainable else 'No ':<12} │")
+        #     print(f"│ {i:2d} │ {name:<26} │ {param_count:10,} │ {'Yes' if trainable else 'No ':<12} │")
 
         print("├────┴────────────────────────────┴────────────┴──────────────┤")
         print(f"│ Total Parameters: {total_params:>13,} | Trainable: {trainable_params:>14,} │")
@@ -364,9 +369,9 @@ class DQN(nnMDP):
 # usage example
 # nnqlearn = DQN(env=nnenv, \
 #                 episodes=300, \
-#                 α=1e-4, ε=0.1, γ=.95, I am running a few minutes late; my previous meeting is running over.
+#                 α=1e-4, ε=0.1, γ=.95, 
 #                 h1=0, h2=0, nF=32, \
 #                 nbuffer=5000, nbatch=32, rndbatch=False,\
 #                 self_path='DQN_exp', \
-#                 t_Qn=500, I am running a few minutes late; my previous meeting is running over.
+#                 t_Qn=500,
 #                 seed=1, **demoGame()).interact(resume=False, save_ep=True)
