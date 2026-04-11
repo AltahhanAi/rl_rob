@@ -18,14 +18,14 @@ class TileCoder:
         self.primes    = primes(len(self.X0))                          # [2,3,5,...] ensures tilings never overlap
         self.shape     = tuple([self.n_tilings] + [self.n_tiles[i] + p for i, p in enumerate(self.primes)])  # (n_tilings, n_tiles[0]+2, n_tiles[1]+3, ...)
         self.nF        = int(np.prod(self.shape))
-
+    
     def inds(self, x):
         X0, Xn, n_tiles, n_tilings, primes = self.X0, self.Xn, self.n_tiles, self.n_tilings, self.primes[None,:]
         tilings  = np.arange(n_tilings)[:,None]
-        s_tiling = floor(n_tilings * n_tiles * (x - X0) / (Xn - X0))   # (d,) broadcast over dims
-        s_all    = (s_tiling + primes*tilings) // n_tilings            # (n_tilings, d)
+        s_tiling = floor(n_tilings * n_tiles * (x - X0) / (Xn - X0))
+        s_all    = ((s_tiling + primes*tilings) // n_tilings).astype(int)            # cast to int for indexing
         return   [(t, *s_all[t]) for t in range(n_tilings)]
-
+        
     def s_(self, x):
         φ = np.zeros(self.shape)
         for ind in self.inds(x): φ[ind] = 1
