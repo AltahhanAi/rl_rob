@@ -105,7 +105,7 @@ class GymTiledMixin:
 
 
 # ========================================= Gym Tiled Classes ==========================================
-class GymTiled(GymTiledMixin, GymCont, TileCoder):
+class GymTiled(GymTiledMixin, TileCoder, GymCont):
     """exact tile coding — zero collision, nF grows with n_tilings × ∏(n_tiles+p)"""
     def __init__(self, env_id, make=gym.make, **kw):
         GymCont.__init__(self, env_id=env_id, make=make)
@@ -114,7 +114,7 @@ class GymTiled(GymTiledMixin, GymCont, TileCoder):
         self.nS = self.nF
 
 
-class GymTiledHashed(GymTiledMixin, GymCont, HashedTileCoder):
+class GymTiledHashed(GymTiledMixin, HashedTileCoder, GymCont):
     """hashed tile coding — fixed nF, rare collisions, slowest (Python hash loop)"""
     def __init__(self, env_id, make=gym.make, **kw):
         GymCont.__init__(self, env_id=env_id, make=make)
@@ -123,7 +123,7 @@ class GymTiledHashed(GymTiledMixin, GymCont, HashedTileCoder):
         self.nS = self.nF
 
 
-class GymTiledIHT(GymTiledMixin, GymCont, IHTTileCoder):
+class GymTiledIHT(GymTiledMixin, IHTTileCoder, GymCont):
     """IHT tile coding — fixed nF, fully vectorised, best for high-dim envs like HalfCheetah"""
     def __init__(self, env_id, make=gym.make, **kw):
         GymCont.__init__(self, env_id=env_id, make=make)
