@@ -15,7 +15,8 @@ class TileCoder:
         self.Xn        = np.asarray(Xn if Xn is not None else high)
         self.n_tiles   = np.asarray([n_tiles]*len(self.X0)) if np.isscalar(n_tiles) else np.asarray(n_tiles)
         self.n_tilings = n_tilings
-        self.primes    = primes(len(self.X0))                                   # [2,3,5,...] ensures tilings never overlap
+        # self.primes    = primes(len(self.X0))                                   # [2,3,5,...] ensures tilings never overlap
+        self.primes = np.arange(1, 2*len(self.X0), 2)    # [1, 3, 5, ...] exactly like your
         self.shape     = tuple([self.n_tilings] + [self.n_tiles[i] + p for i, p in enumerate(self.primes)])
         nF_exact       = int(np.prod(self.shape))
         self.nF        = nF if nF is not None else nF_exact                     # overridden by subclasses via nF arg
@@ -33,7 +34,7 @@ class TileCoder:
         self._φex[:] = 0                                                        # zero exact buffer
         φ = self._φex.reshape(self.shape)                                       # free view, no copy
         for ind in self.inds(x): φ[ind] = 1
-        return self._φex                                                        # already flat
+        return self._φex                                                      # already flat
 
 
 # ================================== Hashed Tile Coder =====================================
