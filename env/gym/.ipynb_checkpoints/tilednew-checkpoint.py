@@ -68,42 +68,43 @@ class GymTiledMixin:
     """
     def _init_mixin(self, env_id, **kw):
         if 'σ' in kw: self.σ = kw['σ']
-        if 'Freeway'     in env_id: self._proc_obs_ = self._proc_obs_Freeway      # override for stacked RAM features
-        if 'HalfCheetah' in env_id: self._proc_obs_ = self._proc_obs_HalfCheetah  # override for dim selection
+        if 'Freeway'     in env_id: self._get_obs = self._get_obs_Freeway        # override for stacked RAM features
+        if 'HalfCheetah' in env_id: self._get_obs = self._get_obs_HalfCheetah   # override for dim selection
 
-    def _proc_obs_(self, x):
+    def _get_obs(self, x):
         # default: handle stacked frames by taking the most recent step
         if len(x.shape) > 1: x = x[-1]
         return x
 
+    def _proc_obs(self, x):                                                      # overrides GymCont._proc_obs
+        return self.s_(self._get_obs(x))
+
     def s_(self, x=None):
         if x is None: x = self.obs                                               # no args → use current obs
-        return super().s_(self._proc_obs_(x))
+        return super().s_(self._get_obs(x))
 
-    def _proc_obs_Freeway(self, x):
+    def _get_obs_Freeway(self, x):
         # obs is (n_steps, 24) stacked RAM features, each step has 12 (x,y) object pairs
         # returns [agent_y, nearest_car_x, nearest_car_y] normalised to [0,1] → X0=[0,0,0], Xn=[1,1,1]
-        pairs = x[-1].reshape(-1, 2)                                            # last step: (12,2) → [x,y] per object
+        pairs = x[-1].reshape(-1, 2)                                             # last step: (12,2) → [x,y] per object
         agent = pairs[0]
         cars  = pairs[1:]
-        cars  = cars[cars[:, 0] != -3]                                          # filter undetected cars (sentinel x==-3)
+        cars  = cars[cars[:, 0] != -3]                                           # filter undetected cars (sentinel x==-3)
         car   = agent
         if cars.shape[0] > 0:
-            idx = np.argmin(np.abs(cars[:, 1] - agent[1]))                      # nearest car by vertical distance
+            idx = np.argmin(np.abs(cars[:, 1] - agent[1]))                       # nearest car by vertical distance
             car = cars[idx]
         W, H  = 160.0, 210.0
         return np.array([agent[1]/H, car[0]/W, car[1]/H])
 
-    def _proc_obs_HalfCheetah(self, x):
+    def _get_obs_HalfCheetah(self, x):
         # raw obs is 17-dim, select 9 most informative dims
         # X0/Xn must be 9-dim to match
         x = np.asarray(x).reshape(-1)
         return np.array([
-            x[0], x[1], x[8], x[9], x[10],                                     # rootz, rooty, rootx_dot, rootz_dot, rooty_dot
-            x[2], x[5], x[11], x[14],                                          # bthigh, fthigh, bthigh_dot, fthigh_dot
+            x[0], x[1], x[8], x[9], x[10],                                      # rootz, rooty, rootx_dot, rootz_dot, rooty_dot
+            x[2], x[5], x[11], x[14],                                            # bthigh, fthigh, bthigh_dot, fthigh_dot
         ], dtype=np.float32)
-
-
 # ========================================= Gym Tiled Classes ==========================================
 class GymTiled(GymTiledMixin, TileCoder, GymCont):
     """exact tile coding — zero collision, nF grows with n_tilings × ∏(n_tiles+p)"""
@@ -130,3 +131,5 @@ class GymTiledIHT(GymTiledMixin, IHTTileCoder, GymCont):
         IHTTileCoder.__init__(self, **kw)
         self._init_mixin(env_id, **kw)
         self.nS = self.nF
+
+
