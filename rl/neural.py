@@ -404,6 +404,7 @@ class nnPG(PG(nnMDP)):
         # print(self.env.nA)
         return np.random.choice(self.env.nA, p=π)
         (s, rn,sn, done, a,an) 
+        
     def online(self, s, rn,sn, done, a,an):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
@@ -464,7 +465,7 @@ class nnPGc(PG(nnMDP)):
         μ, σ = self.μ_π(s), self.σ_π(s)
         return np.sum(-((a - μ)**2) / (2 * σ**2) - np.log(σ) - .5 * np.log(2 * np.pi))
 
-    def online(self, s, a, rn, sn, an, done, t):
+    def online(self, s, rn,sn, done, a,an):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
         Vn, _, _ = self.ϴ(sn)
@@ -524,7 +525,7 @@ class DuelDQN(DQN):
 # ===============================================================================================
 def AC(base, label):
     class nnAC_(base):
-        def online(self, s, a, rn, sn, an, done, t):
+        def online(self, s, rn,sn, done, a,an):
             if len(self.buffer) < self.nbatch: return
             (s, a, rn, sn, dones), inds = self.batch()
             Vn, *_ = self.ϴ(sn)
