@@ -259,7 +259,7 @@ class DuelDQN(DQN):
         super().__init__(model_class=model_class, **kw)
 
 # ===============================================================================================
-def AC(base=nnPG, label):
+def AC(base=nnPG, label='AC'):
     class nnAC_(base):
         def online(self, *args):
             if len(self.buffer) < self.nbatch: return
