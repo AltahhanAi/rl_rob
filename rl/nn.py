@@ -193,7 +193,7 @@ class nnACSharedModel(nnSplitModel):
         self.optim = optim.Adam([
             {'params': list(self.layers[:self.head_idx].parameters()) +
                        list(self.head1.parameters()), 'lr': αv},  # trunk + V head
-            {'params': list(self.head2.parameters())  'lr': αq}   # π head only
+            {'params': list(self.head2.parameters()),  'lr': αq}   # π head only
         ])
 
     def forward(self, x):
