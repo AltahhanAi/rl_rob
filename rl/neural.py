@@ -50,8 +50,8 @@ class nnMRP(MRP):
         self.load_weights_ = load_weights
         self.save_weights_ = save_weights
         self.t_           = 0
-        self.w  = self.create_model('V',  self.α, self.final_bias, self.model_class) if create_w  else None
-        self.wn = self.create_model('Vn', self.α, self.final_bias, self.model_class) if create_wn else None
+        self.w  = self.create_model('V',  self.model_class) if create_w  else None
+        self.wn = self.create_model('Vn', self.model_class) if create_wn else None
 
     def init_(self):
         torch.manual_seed(self.seed)
@@ -59,13 +59,14 @@ class nnMRP(MRP):
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
 
-    def create_model(self, net_str, α, final_bias, model_class):
+    def create_model(self, net_str, model_class):
         self.state_dim  = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
         model = model_class(
             inp_dim=self.state_dim, trunk=self.trunk,
             nF=self.nF, out_dim=self.action_dim,
-            α=α, net_str=net_str, final_bias=final_bias
+            α=self.α, αv=self.αv, αq=self.αq, 
+            net_str=net_str, final_bias=self.final_bias
         )
         model.print_model_summary(net_str)
         return model
@@ -111,8 +112,8 @@ class nnMDP(MDP(nnMRP)):
         super().__init__(create_w=create_w, **kw)
         self.create_Wn = create_Wn
         self.t_Qn = t_Qn
-        self.W  = self.create_model('Q',  self.α, self.final_bias, self.model_class)
-        self.Wn = self.create_model('Qn', self.α, self.final_bias, self.model_class) if create_Wn else None
+        self.W  = self.create_model('Q',  self.model_class)
+        self.Wn = self.create_model('Qn', self.model_class) if create_Wn else None
 
     def init_(self):
         torch.manual_seed(self.seed)
@@ -136,10 +137,7 @@ class nnPG(PG(nnMDP)):
         # nnAC_SharedModel returns two part the V for the critic and Mu and sigma for the Actor
         # no need to initilaise the w independently unless we do nto want to share the same 
         # trunk between the actor and the critic
-        self.wϴ = self.create_model(net_str='wϴ',  
-                                    αq=self.αq, αv=self.αv, 
-                                    final_bias=self.final_bias, 
-                                    model_class=nnACSharedModel) # discrete actions
+        self.wϴ = self.create_model(net_str='wϴ',  model_class=nnACSharedModel) # discrete actions
         self.policy = self.softmax
 
     def init_(self):

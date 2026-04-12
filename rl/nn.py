@@ -29,7 +29,7 @@ from random import sample
 from math import prod
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, net_str='', final_bias=True):
+    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, net_str='', final_bias=True, **kw):
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
