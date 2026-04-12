@@ -400,6 +400,8 @@ class nnPG(PG(nnMDP)):
     def softmax(self, s):
         _, π = self.ϴ.predict(s, self.state_dim)
         π = π.detach().numpy().flatten()              # flatten to 1-d
+        print(π)
+        print(self.env.nA)
         return np.random.choice(self.env.nA, p=π)
         
     def online(self, s, a, rn, sn, an, done, t):
