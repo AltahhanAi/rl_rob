@@ -157,20 +157,6 @@ class nnModel(nn.Module):
         print(f"Total parameters: {total_params:,} of which {bias_params:,} are bias")
 
 # ==================== Split head models for Dueling and Actor-Critic ===========================
-# class nnSplitModel(nnModel):
-#     def __init__(self, head1_dim, head2_dim, **kw):
-#         super().__init__(out_dim=head1_dim, **kw)
-#         feat_in = self.layers[-1].in_features
-#         self.layers = self.layers[:-1]
-#         self.head1 = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
-#         self.head2 = nn.Linear(feat_in, head2_dim, bias=self.final_bias)
-
-#     def forward(self, x):
-#         for l, layer in enumerate(self.layers):
-#             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
-#         self._trunk_out = x
-#         return self.head1(x), self.head2(x)
-
 
 class nnSplitModel(nnModel):
     def __init__(self, head1_dim, head2_dim, **kw):
@@ -200,12 +186,13 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv=1e-3, αq=1e-4, **kw):
+    def __init__(self, out_dim, αa, αc, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
-        critic_params = list(self.layers.parameters()) + list(self.head1.parameters())  # trunk + V head
-        actor_params  = list(self.head2.parameters())                                   # π head only
-        self.optim_c  = optim.Adam(critic_params, lr=αv)
-        self.optim_a  = optim.Adam(actor_params,  lr=αq)
+        self.optim = optim.Adam([
+            {'params': list(self.layers[:self.head_idx].parameters()) +
+                       list(self.head1.parameters()), 'lr': αc},  # trunk + V head
+            {'params': list(self.head2.parameters()),              'lr': αa}   # π head only
+        ])
 
     def forward(self, x):
         V, logits = super().forward(x)
@@ -220,8 +207,7 @@ class nnACSharedModel(nnSplitModel):
 
     def fit(self, s, a, Gt):
         self.train()
-        self.optim_c.zero_grad()
-        self.optim_a.zero_grad()
+        self.optim.zero_grad()
         V, logπ, π = self.logπ(s, a)
         V     = V.squeeze(1)
         A     = (Gt - V).detach()
@@ -231,8 +217,7 @@ class nnACSharedModel(nnSplitModel):
         loss = actor_loss + critic_loss - 0.01 * entropy_bonus
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
-        self.optim_c.step()
-        self.optim_a.step()
+        self.optim.step()
         return loss.item()
 
     def predict(self, s, state_dim, deterministic=False):
