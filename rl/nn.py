@@ -157,16 +157,34 @@ class nnModel(nn.Module):
         print(f"Total parameters: {total_params:,} of which {bias_params:,} are bias")
 
 # ==================== Split head models for Dueling and Actor-Critic ===========================
+# class nnSplitModel(nnModel):
+#     def __init__(self, head1_dim, head2_dim, **kw):
+#         super().__init__(out_dim=head1_dim, **kw)
+#         feat_in = self.layers[-1].in_features
+#         self.layers = self.layers[:-1]
+#         self.head1 = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
+#         self.head2 = nn.Linear(feat_in, head2_dim, bias=self.final_bias)
+
+#     def forward(self, x):
+#         for l, layer in enumerate(self.layers):
+#             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+#         self._trunk_out = x
+#         return self.head1(x), self.head2(x)
+
+
 class nnSplitModel(nnModel):
     def __init__(self, head1_dim, head2_dim, **kw):
         super().__init__(out_dim=head1_dim, **kw)
-        feat_in = self.layers[-1].in_features
-        self.layers = self.layers[:-1]
-        self.head1 = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
-        self.head2 = nn.Linear(feat_in, head2_dim, bias=self.final_bias)
+        feat_in    = self.layers[-1].in_features
+        self.layers = self.layers[:-1]                         # remove final layer
+        self.head1  = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
+        self.head2  = nn.Linear(feat_in, head2_dim, bias=self.final_bias)
+        self.layers.append(self.head1)                         # register for summary
+        self.layers.append(self.head2)                         # register for summary
+        self.head_idx = len(self.layers) - 2                   # index where heads start
 
     def forward(self, x):
-        for l, layer in enumerate(self.layers):
+        for l, layer in enumerate(self.layers[:self.head_idx]):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
         self._trunk_out = x
         return self.head1(x), self.head2(x)
