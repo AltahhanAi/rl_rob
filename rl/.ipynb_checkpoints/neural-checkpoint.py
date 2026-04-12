@@ -1,6 +1,6 @@
 '''
 Abdulrahman Altahhan (c) 2026
-Version: 4.0
+Version: 3.8
 Educational code for teaching RL (DQN and related methods).
 Permission required for redistribution or research/commercial use.
 '''
@@ -31,17 +31,17 @@ from random import sample
 from math import prod
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, net_str='', last_layer_bias=True):
+    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, net_str='', final_bias=True):
         super().__init__()
         self.layers = nn.ModuleList()
-        self.last_layer_bias = last_layer_bias
+        self.final_bias = final_bias
         self.trunk = trunk
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
         feat_in = inp_dim[0]
         feat_in = self.append_trunk(feat_in, inp_dim)
         self.inp_dim = inp_dim
         self.layers.append(nn.Linear(feat_in, nF)) if nF else None
-        self.layers.append(nn.Linear(nF if nF else feat_in, out_dim, bias=self.last_layer_bias))
+        self.layers.append(nn.Linear(nF if nF else feat_in, out_dim, bias=self.final_bias))
         self.α = α
         self.update_msg  = 'update %s network weights...........! at %d'
         self.saving_msg  = 'saving %s network weights to disk...!'
@@ -73,7 +73,7 @@ class nnModel(nn.Module):
             for layer in self.layers[:self.flat_idx]: x = layer(x)
             return x.view(1, -1).shape[1]
 
-    def fit(self, vals, targets, exact=False):                  # exact=True matches linear approximation exactly
+    def fit(self, vals, targets, exact=False):
         self.train()
         self.optim.zero_grad()
         if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
@@ -92,7 +92,7 @@ class nnModel(nn.Module):
         with torch.no_grad():
             return self(s) if s_batch else self(s)[0]
 
-    def init_weights(self, is_final_layer_zero):
+    def init_weights(self, final_zero):
         print(f'training afresh so resetting the weights {self.net_str}')
         gain = init.calculate_gain('relu')
         for layer in self.layers:
@@ -100,8 +100,8 @@ class nnModel(nn.Module):
                 init.xavier_normal_(layer.weight, gain=gain)
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
-        if is_final_layer_zero and isinstance(self.layers[-1], nn.Linear):
-            print('setting final layers weights to 0')
+        if final_zero and isinstance(self.layers[-1], nn.Linear):
+            print('setting final layer weights to 0')
             init.zeros_(self.layers[-1].weight)
         if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
         else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
@@ -164,38 +164,38 @@ class nnSplitModel(nnModel):
         super().__init__(out_dim=head1_dim, **kw)
         feat_in = self.layers[-1].in_features
         self.layers = self.layers[:-1]
-        self.head1 = nn.Linear(feat_in, head1_dim, bias=self.last_layer_bias)
-        self.head2 = nn.Linear(feat_in, head2_dim, bias=self.last_layer_bias)
+        self.head1 = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
+        self.head2 = nn.Linear(feat_in, head2_dim, bias=self.final_bias)
 
     def forward(self, x):
         for l, layer in enumerate(self.layers):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
-        self._trunk_out = x                                     # store trunk output for subclasses
+        self._trunk_out = x
         return self.head1(x), self.head2(x)
 
 # ===============================================================================================
 class nnDuelModel(nnSplitModel):
     def __init__(self, out_dim, **kw):
-        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)  # head1=V, head2=A
+        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
 
     def forward(self, x):
         V, A = super().forward(x)
-        return V + (A - A.mean(dim=1, keepdim=True))            # Q = V + (A - mean(A))
+        return V + (A - A.mean(dim=1, keepdim=True))
 
 # ===============================================================================================
-class nnACModel(nnSplitModel):                                  # discrete actions, softmax policy
+class nnACModel(nnSplitModel):
     def __init__(self, out_dim, **kw):
-        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)  # head1=V, head2=π
+        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
 
     def forward(self, x):
         V, logits = super().forward(x)
         return V, F.softmax(logits, dim=-1)
 
-    def logπ(self, s, a):                                       # overridden by nnACcModel
+    def logπ(self, s, a):
         V, π = self(s)
         return V, torch.log(π[range(len(a)), a]), π
 
-    def entropy(self, π):                                       # overridden by nnACcModel
+    def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
 
     def fit(self, s, a, Gt):
@@ -204,7 +204,7 @@ class nnACModel(nnSplitModel):                                  # discrete actio
         V, logπ, π = self.logπ(s, a)
         V     = V.squeeze(1)
         A     = (Gt - V).detach()
-        critic_loss   = 0.5 * F.mse_loss(V, Gt)                # standard practice for AC
+        critic_loss   = 0.5 * F.mse_loss(V, Gt)
         actor_loss    = -(logπ * A).mean()
         entropy_bonus = self.entropy(π)
         loss = actor_loss + critic_loss - 0.01 * entropy_bonus
@@ -226,16 +226,16 @@ class nnACModel(nnSplitModel):                                  # discrete actio
             return V[0], a[0]
 
 # ===============================================================================================
-class nnACcModel(nnACModel):                                    # continuous actions, Gaussian policy
+class nnACcModel(nnACModel):
     def __init__(self, out_dim, **kw):
         super().__init__(out_dim=out_dim, **kw)
         feat_in     = self.head2.in_features
-        self.μ_head = self.head2                                # reuse head2 as μ
-        self.σ_head = nn.Linear(feat_in, out_dim, bias=self.last_layer_bias)
+        self.μ_head = self.head2
+        self.σ_head = nn.Linear(feat_in, out_dim, bias=self.final_bias)
 
     def forward(self, x):
-        V, μ = nnSplitModel.forward(self, x)                   # stores self._trunk_out, skips softmax
-        σ    = F.softplus(self.σ_head(self._trunk_out)) + 1e-6 # σ from same trunk output
+        V, μ = nnSplitModel.forward(self, x)
+        σ    = F.softplus(self.σ_head(self._trunk_out)) + 1e-6
         return V, μ, σ
 
     def logπ(self, s, a):
@@ -262,8 +262,8 @@ class nnACcModel(nnACModel):                                    # continuous act
 class nnMRP(MRP):
     def __init__(self,
                  trunk=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-                 is_final_layer_zero=False,
-                 last_layer_bias=False,
+                 final_zero=False,
+                 final_bias=False,
                  nF=512, rndbatch=True,
                  nbuffer=10000, nbatch=32, endbatch=1,
                  save_weights=1000, load_weights=False,
@@ -279,9 +279,9 @@ class nnMRP(MRP):
         self.create_vNn   = create_vNn
         self.t_Vn         = t_Vn
         self.nF           = nF
-        self.is_final_layer_zero = is_final_layer_zero
+        self.final_zero   = final_zero
         self.trunk        = trunk
-        self.last_layer_bias = last_layer_bias
+        self.final_bias   = final_bias
         self.action_dtype = action_dtype
         self.model_class  = model_class
         if endbatch > nbatch: endbatch = nbatch - 1
@@ -293,22 +293,22 @@ class nnMRP(MRP):
         self.load_weights_ = load_weights
         self.save_weights_ = save_weights
         self.t_           = 0
-        self.vN  = self.create_model('V',  self.α, self.last_layer_bias) if create_vN  else None
-        self.vNn = self.create_model('Vn', self.α, self.last_layer_bias) if create_vNn else None
+        self.vN  = self.create_model('V',  self.α, self.final_bias) if create_vN  else None
+        self.vNn = self.create_model('Vn', self.α, self.final_bias) if create_vNn else None
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
+        self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.final_zero)
         self.vNn.eval() if self.create_vNn else None
         self.V_ = self.V
 
-    def create_model(self, net_str, α, last_layer_bias):
+    def create_model(self, net_str, α, final_bias):
         self.state_dim  = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
         model = self.model_class(
             inp_dim=self.state_dim, trunk=self.trunk,
             nF=self.nF, out_dim=self.action_dim,
-            α=α, net_str=net_str, last_layer_bias=last_layer_bias
+            α=α, net_str=net_str, final_bias=final_bias
         )
         model.print_model_summary(net_str)
         return model
@@ -354,14 +354,14 @@ class nnMDP(MDP(nnMRP)):
         super().__init__(create_vN=create_vN, **kw)
         self.create_qNn = create_qNn
         self.t_Qn       = t_Qn
-        self.qN  = self.create_model('Q',  self.α, self.last_layer_bias)
-        self.qNn = self.create_model('Qn', self.α, self.last_layer_bias) if create_qNn else None
+        self.qN  = self.create_model('Q',  self.α, self.final_bias)
+        self.qNn = self.create_model('Qn', self.α, self.final_bias) if create_qNn else None
 
     def init_(self):
         torch.manual_seed(self.seed)
         if self.create_vN:
-            self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.is_final_layer_zero)
-        self.qN.load_weights('Q') if self.load_weights_ else self.qN.init_weights(self.is_final_layer_zero)
+            self.vN.load_weights('V') if self.load_weights_ else self.vN.init_weights(self.final_zero)
+        self.qN.load_weights('Q') if self.load_weights_ else self.qN.init_weights(self.final_zero)
         self.qNn.eval() if self.create_qNn else None
         self.V_ = self.V
         self.Q_ = self.Q
@@ -378,12 +378,12 @@ class nnPG(PG(nnMDP)):
         super().__init__(**kw)
         self.ϴ = nnACModel(inp_dim=self.state_dim, trunk=self.trunk,
                             nF=self.nF, out_dim=self.env.nA,
-                            α=self.α, net_str='ϴ', last_layer_bias=self.last_layer_bias)
+                            α=self.α, net_str='ϴ', final_bias=self.final_bias)
         self.policy = self.softmax
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.ϴ.load_weights('ϴ') if self.load_weights_ else self.ϴ.init_weights(self.is_final_layer_zero)
+        self.ϴ.load_weights('ϴ') if self.load_weights_ else self.ϴ.init_weights(self.final_zero)
         self.V_ = self.V
         self.Q_ = self.Q
         self.H_ = self.H
@@ -423,12 +423,12 @@ class nnPGc(PG(nnMDP)):
         self.σmin = σmin
         self.ϴ    = nnACcModel(inp_dim=self.state_dim, trunk=self.trunk,
                                 nF=self.nF, out_dim=self.env.action_space.shape[0],
-                                α=self.α, net_str='ϴ', last_layer_bias=self.last_layer_bias)
+                                α=self.α, net_str='ϴ', final_bias=self.final_bias)
         self.policy = self.Gaussian
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.ϴ.load_weights('ϴ') if self.load_weights_ else self.ϴ.init_weights(self.is_final_layer_zero)
+        self.ϴ.load_weights('ϴ') if self.load_weights_ else self.ϴ.init_weights(self.final_zero)
         self.V_ = self.V
         self.Q_ = self.Q
 
@@ -481,7 +481,7 @@ class TDN(nnMRP):
         Vn  = self.vNn(sn).detach() if self.create_vNn and self.ep > 2 else self.vN(sn).detach()
         Vn[dones] = 0
         targets = self.γ * Vn + rn.unsqueeze(1)
-        loss = self.vN.fit(Vs, targets, exact=True)             # exact=True for linear equivalence
+        loss = self.vN.fit(Vs, targets, exact=True)
         if self.t_Vn and self.t_ % self.t_Vn == 0 and self.create_vNn:
             self.vNn.set_weights(self.vN, 'V', self.t_)
 
@@ -495,7 +495,7 @@ class DQN(nnMDP):
         Qn[dones] = 0
         targets = Qs.clone().detach()
         targets[inds, a] = self.γ * Qn.max(1).values + rn
-        loss = self.qN.fit(Qs, targets)                         # standard mse_loss
+        loss = self.qN.fit(Qs, targets)
         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_qNn:
             self.qNn.set_weights(self.qN, 'Q', self.t_)
 
@@ -510,7 +510,7 @@ class DDQN(DQN):
         Qn[dones] = 0
         targets = Qs.clone().detach()
         targets[inds, a] = self.γ * Qn[inds, an] + rn
-        loss = self.qN.fit(Qs, targets)                         # standard mse_loss
+        loss = self.qN.fit(Qs, targets)
         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_qNn:
             self.qNn.set_weights(self.qN, 'Q', self.t_)
 
