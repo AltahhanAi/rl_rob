@@ -230,7 +230,7 @@ class nnACSharedModel(nnSplitModel):
             return V[0], π[0]
 
 # ===============================================================================================
-class nnACcSharedModel(nnAC_SharedModel):
+class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, **kw):
         super().__init__(out_dim=out_dim, **kw)
         feat_in     = self.head2.in_features
