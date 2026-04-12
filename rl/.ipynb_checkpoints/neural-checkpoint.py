@@ -399,9 +399,9 @@ class nnPG(PG(nnMDP)):
 
     def softmax(self, s):
         _, π = self.ϴ.predict(s, self.state_dim)
-        π = π.detach().numpy()
+        π = π.detach().numpy().flatten()              # flatten to 1-d
         return np.random.choice(self.env.nA, p=π)
-
+        
     def online(self, s, a, rn, sn, an, done, t):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
@@ -537,3 +537,113 @@ def AC(base, label):
 # ===============================================================================================
 nnAC  = AC(nnPG,  'discrete')
 nnACc = AC(nnPGc, 'continuous')
+
+
+# ===============================================================================================
+'''
+nnRollout replaces the replay buffer with a rollout buffer for on-policy methods.
+It collects full trajectories, computes GAE advantages, and supports multiple epochs
+over the same rollout.
+'''
+class nnRollout(nnMRP):
+    def __init__(self, nsteps=128, epochs=4, λ=0.95, **kw):
+        super().__init__(create_vN=False, **kw)
+        self.nsteps = nsteps
+        self.epochs = epochs
+        self.λ      = λ
+        self.s    = []
+        self.a    = []
+        self.rn   = []
+        self.done = []
+        self.logπ = []
+        self.Vb   = []
+
+    def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
+        s_t  = torch.tensor(s, dtype=torch.float32).unsqueeze(0)
+        a_t  = torch.tensor(a, dtype=torch.float32)
+        with torch.no_grad():
+            V, μ, σ = self.ϴ(s_t)
+            logπ    = Normal(μ, σ).log_prob(a_t).sum().item()
+        self.s.append(s)
+        self.a.append(a)
+        self.rn.append(rn)
+        self.done.append(done)
+        self.logπ.append(logπ)
+        self.Vb.append(V.item())
+
+    def GAE(self, sn_last, done_last):
+        γ = self.γ
+        with torch.no_grad():
+            Vn_last, _, _ = self.ϴ(torch.tensor(sn_last, dtype=torch.float32).unsqueeze(0))
+            Vn_last = 0 if done_last else Vn_last.item()
+        As = []
+        Gt = []
+        A  = 0
+        Vn = Vn_last
+        for rn, V, done in zip(reversed(self.rn), reversed(self.Vb), reversed(self.done)):
+            δ  = rn + γ * Vn * (1 - done) - V
+            A  = δ + γ * self.λ * A * (1 - done)
+            As.insert(0, A)
+            Gt.insert(0, A + V)
+            Vn = V
+        return torch.tensor(As, dtype=torch.float32), torch.tensor(Gt, dtype=torch.float32)
+
+    def rollout_batch(self):
+        s        = torch.tensor(np.array(self.s),  dtype=torch.float32)
+        a        = torch.tensor(np.array(self.a),  dtype=torch.float32)
+        logπ_old = torch.tensor(self.logπ,         dtype=torch.float32)
+        return s, a, logπ_old
+
+    def clear_rollout(self):
+        self.s    = []
+        self.a    = []
+        self.rn   = []
+        self.done = []
+        self.logπ = []
+        self.Vb   = []
+
+# ===============================================================================================
+'''
+PPO — Proximal Policy Optimisation.
+Inherits Gaussian policy and ϴ network from nnPGc, rollout buffer and GAE from nnRollout.
+The student only needs to see this class.
+'''
+class PPO(nnPGc, nnRollout):
+    def __init__(self, ε_clip=0.2, **kw):
+        super().__init__(**kw)
+        self.ε_clip = ε_clip
+
+    def online(self, s, a, rn, sn, an, done, t):
+        if len(self.s) < self.nsteps: return
+        As_, Gt_          = self.GAE(sn, done)
+        s_, a_, logπ_old_ = self.rollout_batch()
+        As_ = (As_ - As_.mean()) / (As_.std() + 1e-8)         # normalise advantages
+        ε   = self.ε_clip
+        for _ in range(self.epochs):
+            self.ϴ.train()
+            idx = torch.randperm(self.nsteps)
+            for start in range(0, self.nsteps, self.nbatch):
+                mb                     = idx[start:start + self.nbatch]
+                s, a, logπ_old, As, Gt = s_[mb], a_[mb], logπ_old_[mb], As_[mb], Gt_[mb]
+                self.ϴ.optim.zero_grad()
+                V, μ, σ  = self.ϴ(s) ; V = V.squeeze(1)
+                p         = Normal(μ, σ)
+                logπ      = p.log_prob(a).sum(dim=-1)
+                r         = (logπ - logπ_old).exp()            # π_new / π_old
+                L_actor   = torch.min(r * As, torch.clamp(r, 1-ε, 1+ε) * As).mean()
+                L_critic  = 0.5  * F.mse_loss(V, Gt)
+                L_entropy = 0.01 * p.entropy().mean()
+                loss      = -(L_actor - L_critic + L_entropy)
+                loss.backward()
+                clip_grad_norm_(self.ϴ.parameters(), max_norm=0.5)
+                self.ϴ.optim.step()
+        self.clear_rollout()
+
+# =================================================================================================
+# usage example
+# ppo = PPO(env=env, α=3e-4, γ=0.99, seed=1, episodes=1000, **demoGame,
+#           trunk=[(8,4,2),(4,4,4)], nF=64,
+#           nsteps=128, epochs=4, λ=0.95,
+#           ε_clip=0.2,
+#           final_zero=True, final_bias=True,
+#           file_name='PPO_exp').interact()
