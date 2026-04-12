@@ -55,6 +55,15 @@ class iGrid(Grid):
 
     def s_(self):
         return self.to_img() 
+
+    def S_(self):
+        sc = self.s
+        imgs = []
+        for self.s in range(self.nS):
+            imgs.append(self.s_())  # each is (1, H, W)
+        self.s = sc
+        return np.stack(imgs)  # (nS, 1, H, W)
+    
 # =========================================================================================================================
 '''
 This class is heavier and slower because it uses images from matplotlib, which was not specifically designed for fast, step-wise image generation. This is for illustration and testing purposes. It is useful to know if you set up a neural net solution for RL correctly.
@@ -107,7 +116,8 @@ class i_Grid(Grid):
     def s_(self):
         self.render__(image=True, animate=self.animate, saveimg=self.saveimg)#, animate=self.animate)
         return self.img
-    
+
+def irandwalk(**kw):  return randwalk  (iGrid, **kw)
 
 def imaze(Grid=iGrid, r=6, c=9, **kw): # we cover this later
     return iGrid(gridsize=[r,c], s0=r//2*c, goals=[r*c-1], style='maze', **kw)#figsize is made ineffective

@@ -171,34 +171,26 @@ class nnModel(nn.Module):
     def set_weights(self, source_model, net_str, t):
         # print(self.update_msg % (net_str, t))
         self.load_state_dict(source_model.state_dict())
-
+    
     def print_model_summary(self, net_str):
-        print("╭─────────────────────────────────────────────────────────────╮")
-        print(f"│               Model Architecture for {net_str} net                  │")
-        print("├────┬────────────────────────────┬────────────┬──────────────┤")
-        print("│ Id │ Layer                      │ Parameters │ Trainable    │")
-        print("├────┼────────────────────────────┼────────────┼──────────────┤")
-
+        print( "╭──────────────────────────────────────────────────────────────────╮")
+        print(f"│          Model Architecture: {net_str:<36}│")
+        print( "├────┬────────────────────┬─────────────────────────┬──────────────┤")
+        print( "│ Id │ Layer              │ Parameters              │ Trainable    │")
+        print( "├────┼────────────────────┼─────────────────────────┼──────────────┤")
         total_params = 0
-        trainable_params = 0
-
+        bias_params = 0
         for i, layer in enumerate(self.layers):
             param_count = sum(p.numel() for p in layer.parameters())
-            trainable = all(p.requires_grad for p in layer.parameters())
-            print(f"│ {i:2d} │ {str(layer):<26} │ {param_count:10,} │ {'Yes' if trainable else 'No ':<12} │")
-            
-        # for i, (name, param) in enumerate(self.named_parameters()):
-        #     param_count = param.numel()
-        #     total_params += param_count
-        #     trainable = param.requires_grad
-        #     if trainable:
-        #         trainable_params += param_count
-
-        #     print(f"│ {i:2d} │ {name:<26} │ {param_count:10,} │ {'Yes' if trainable else 'No ':<12} │")
-
-        print("├────┴────────────────────────────┴────────────┴──────────────┤")
-        print(f"│ Total Parameters: {total_params:>13,} | Trainable: {trainable_params:>14,} │")
-        print("╰─────────────────────────────────────────────────────────────╯")
+            trainable = any(p.requires_grad for p in layer.parameters())
+            total_params += param_count
+            layer_bias = sum(p.numel() for name, p in layer.named_parameters() if name == 'bias')
+            bias_params += layer_bias
+            layer_str = type(layer).__name__
+            param_str = f"{param_count:>10,} ({layer_bias:>3,} bias)"
+            print(f"│ {i:2d} │ {layer_str:<18} │ {param_str:<23} │ {'Yes' if trainable else 'No ':<12} │")
+        print("╰──────────────────────────────────────────────────────────────────╯")
+        print(f"Total parameters: {total_params:,} of which {bias_params:,} are bias")
 
 # ===============================================================================================
 '''
@@ -210,7 +202,7 @@ class nnMRP(MRP):
                  is_final_layer_zero=False,                        # useful for setting the default weights of the final layer to 0 
                  nF=512, nbuffer=10000,                            # nF n_feature penultimate layer, nbuffer is the replay buffer size
                  nbatch=32, rndbatch=True, endbatch=1,             # mini batch size, rand batch sampling, non-rand samples at its end
-                 save_weights=1000, load_weights=False, create_vN=True, last_layer_bias=True, **kw):
+                 save_weights=1000, load_weights=False, create_vN=True, last_layer_bias=False, **kw):
 
         super().__init__(**kw)
         self.create_vN = create_vN
@@ -340,7 +332,7 @@ class nnMDP(MDP(nnMRP)):
 # ===============================================================================================
 class DQN(nnMDP):
     def __init__(self, t_Qn=1000, **kw):
-        print('--------------------- 易  DQN is being set up 易 -----------------------')
+        print('------------------- 易  DQN is being set up 易 ---------------------')
         super().__init__(**kw)
         self.store = True
         self.t_Qn = t_Qn
