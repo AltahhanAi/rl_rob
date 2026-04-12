@@ -65,7 +65,7 @@ class nnMRP(MRP):
         model = model_class(
             inp_dim=self.state_dim, trunk=self.trunk,
             nF=self.nF, out_dim=self.action_dim,
-            α=self.α, αv=self.αv, αq=self.αq, 
+            α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None), 
             net_str=net_str, final_bias=self.final_bias
         )
         model.print_model_summary(net_str)
