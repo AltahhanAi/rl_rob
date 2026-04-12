@@ -91,6 +91,7 @@ class nnModel(nn.Module):
         with torch.no_grad():
             return self(s) if s_batch else self(s)[0]
 
+
     def init_weights(self, final_zero):
         print(f'training afresh so resetting the weights {self.net_str}')
         gain = init.calculate_gain('relu')
@@ -192,7 +193,7 @@ class nnACSharedModel(nnSplitModel):
         self.optim = optim.Adam([
             {'params': list(self.layers[:self.head_idx].parameters()) +
                        list(self.head1.parameters()), 'lr': αv},  # trunk + V head
-            {'params': list(self.head2.parameters()),              'lr': αq}   # π head only
+            {'params': list(self.head2.parameters())  'lr': αq}   # π head only
         ])
 
     def forward(self, x):
@@ -232,6 +233,20 @@ class nnACSharedModel(nnSplitModel):
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
             if s_batch: return V, π
             return V[0], π[0]
+
+    def init_weights(self, final_zero):
+        print(f'training afresh so resetting the weights {self.net_str}')
+        gain = init.calculate_gain('relu')
+        for layer in self.layers:
+            if isinstance(layer, (nn.Linear, nn.Conv2d)):
+                init.xavier_normal_(layer.weight, gain=gain)
+                if layer.bias is not None:
+                    init.zeros_(layer.bias)
+        if final_zero and isinstance(self.layers[-1], nn.Linear):
+            print('setting final layer weights to 0')
+            init.zeros_(self.layers[-1].weight)
+        # do NOT touch self.optim — it was set up in __init__ with αv/αq groups
+
 
 # ===============================================================================================
 class nnACcSharedModel(nnACSharedModel):
