@@ -12,16 +12,18 @@ from env.grid.neural import *
 
 # ========= This is where RL enters, the above will be data members of the below classes ========
 # ================ nnMRP, nnMDP, PG Classes with Neural Net =====================================
+#(32, 8, 4), (64, 4, 2), (64, 3, 1)],
 class nnMRP(MRP):
     def __init__(self,
-                 trunk=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+                 trunk=[],
                  final_zero=False,
                  final_bias=False,
-                 nF=512, rndbatch=True,
-                 nbuffer=10000, nbatch=32, endbatch=1,
+                 nF=None, rndbatch=True,
+                 nbuffer=1, nbatch=1, endbatch=1,
                  save_weights=1000, load_weights=False,
                  create_w=True,
-                 create_wn=False, t_Vn=1000,
+                 create_wn=False, 
+                 t_Vn=0,
                  action_dtype=torch.int64,
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  **kw):
