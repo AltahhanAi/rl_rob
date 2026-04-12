@@ -73,7 +73,7 @@ class nnModel(nn.Module):
             for layer in self.layers[:self.flat_idx]: x = layer(x)
             return x.view(1, -1).shape[1]
 
-    def fit(self, vals, targets, exact=False):
+    def fit(self, vals, targets, exact=True):
         self.train()
         self.optim.zero_grad()
         if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
@@ -510,7 +510,7 @@ class DDQN(DQN):
         Qn[dones] = 0
         targets = Qs.clone().detach()
         targets[inds, a] = self.γ * Qn[inds, an] + rn
-        loss = self.qN.fit(Qs, targets)
+        loss = self.qN.fit(Qs, targets, exact=True)
         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_qNn:
             self.qNn.set_weights(self.qN, 'Q', self.t_)
 
