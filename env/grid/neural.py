@@ -118,9 +118,16 @@ class i_Grid(Grid):
         return self.img
 
 def irandwalk(**kw):  return randwalk  (iGrid, **kw)
+def irandwalk_(**kw): return randwalk_ (iGrid, **kw)
+def igrid(**kw):      return grid      (iGrid, **kw)
+def imaze(**kw):      return maze      (iGrid, **kw)
+def imaze_large(**kw):return maze_large(iGrid, **kw)
+def icliffwalk(**kw): return cliffwalk (iGrid, **kw)
+def iwindy(**kw):     return windy     (iGrid, **kw)
 
-def imaze(Grid=iGrid, r=6, c=9, **kw): # we cover this later
-    return iGrid(gridsize=[r,c], s0=r//2*c, goals=[r*c-1], style='maze', **kw)#figsize is made ineffective
+
+# def imaze(Grid=iGrid, r=6, c=9, **kw): # we cover this later
+#     return iGrid(gridsize=[r,c], s0=r//2*c, goals=[r*c-1], style='maze', **kw)#figsize is made ineffective
 
 def i_maze(Grid=i_Grid, r=6, c=9, **kw): # we cover this later
     return iGrid(gridsize=[r,c], s0=r//2*c, goals=[r*c-1], style='maze', **kw)#figsize is made ineffective
