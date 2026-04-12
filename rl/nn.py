@@ -186,12 +186,12 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αa, αc, **kw):
+    def __init__(self, out_dim, αv=1e-3, αq=1e-4, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
         self.optim = optim.Adam([
             {'params': list(self.layers[:self.head_idx].parameters()) +
-                       list(self.head1.parameters()), 'lr': αc},  # trunk + V head
-            {'params': list(self.head2.parameters()),              'lr': αa}   # π head only
+                       list(self.head1.parameters()), 'lr': αv},  # trunk + V head
+            {'params': list(self.head2.parameters()),              'lr': αq}   # π head only
         ])
 
     def forward(self, x):
@@ -231,7 +231,7 @@ class nnACSharedModel(nnSplitModel):
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
             if s_batch: return V, π
             return V[0], π[0]
-
+            
 # ===============================================================================================
 class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, **kw):
