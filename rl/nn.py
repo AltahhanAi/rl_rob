@@ -234,18 +234,18 @@ class nnACSharedModel(nnSplitModel):
             if s_batch: return V, π
             return V[0], π[0]
 
-    def init_weights(self, final_zero):
-        print(f'training afresh so resetting the weights {self.net_str}')
-        gain = init.calculate_gain('relu')
-        for layer in self.layers:
-            if isinstance(layer, (nn.Linear, nn.Conv2d)):
-                init.xavier_normal_(layer.weight, gain=gain)
-                if layer.bias is not None:
-                    init.zeros_(layer.bias)
-        if final_zero and isinstance(self.layers[-1], nn.Linear):
-            print('setting final layer weights to 0')
-            init.zeros_(self.layers[-1].weight)
-        # do NOT touch self.optim — it was set up in __init__ with αv/αq groups
+    # def init_weights(self, final_zero):
+    #     print(f'training afresh so resetting the weights {self.net_str}')
+    #     gain = init.calculate_gain('relu')
+    #     for layer in self.layers:
+    #         if isinstance(layer, (nn.Linear, nn.Conv2d)):
+    #             init.xavier_normal_(layer.weight, gain=gain)
+    #             if layer.bias is not None:
+    #                 init.zeros_(layer.bias)
+    #     if final_zero and isinstance(self.layers[-1], nn.Linear):
+    #         print('setting final layer weights to 0')
+    #         init.zeros_(self.layers[-1].weight)
+    #     # do NOT touch self.optim — it was set up in __init__ with αv/αq groups
 
 
 # ===============================================================================================
