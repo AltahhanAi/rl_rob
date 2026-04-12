@@ -222,8 +222,8 @@ class nnACModel(nnSplitModel):
         with torch.no_grad():
             V, π = self(s)
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
-            if s_batch: return V, a
-            return V[0], a[0]
+            if s_batch: return V, π # a
+            return V[0], π # a[0]
 
 # ===============================================================================================
 class nnACcModel(nnACModel):
@@ -256,7 +256,7 @@ class nnACcModel(nnACModel):
             V, μ, σ = self(s)
             a = μ if deterministic else torch.distributions.Normal(μ, σ).sample()
             if s_batch: return V, a
-            return V[0], a[0]
+            return V[0], π[0] a[0]
 
 # ================ nnMRP, nnMDP, PG Classes with Neural Net =====================================
 class nnMRP(MRP):
@@ -400,8 +400,8 @@ class nnPG(PG(nnMDP)):
     def softmax(self, s):
         _, π = self.ϴ.predict(s, self.state_dim)
         π = π.detach().numpy().flatten()              # flatten to 1-d
-        print(π)
-        print(self.env.nA)
+        # print(π)
+        # print(self.env.nA)
         return np.random.choice(self.env.nA, p=π)
         
     def online(self, s, a, rn, sn, an, done, t):
