@@ -403,8 +403,8 @@ class nnPG(PG(nnMDP)):
         # print(π)
         # print(self.env.nA)
         return np.random.choice(self.env.nA, p=π)
-        
-    def online(self, s, a, rn, sn, an, done, t):
+        (s, rn,sn, done, a,an) 
+    def online(self, s, rn,sn, done, a,an) 
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
         Vn, _ = self.ϴ(sn)
