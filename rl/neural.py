@@ -111,8 +111,8 @@ class nnMDP(MDP(nnMRP)):
         super().__init__(create_w=create_w, **kw)
         self.create_Wn = create_Wn
         self.t_Qn = t_Qn
-        self.W  = self.create_model('Q',  self.α, self.final_bias)
-        self.Wn = self.create_model('Qn', self.α, self.final_bias) if create_Wn else None
+        self.W  = self.create_model('Q',  self.α, self.final_bias, model_class)
+        self.Wn = self.create_model('Qn', self.α, self.final_bias, model_class) if create_Wn else None
 
     def init_(self):
         torch.manual_seed(self.seed)
