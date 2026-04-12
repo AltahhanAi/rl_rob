@@ -27,25 +27,25 @@ class nnMRP(MRP):
                  **kw):
         print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------')
         super().__init__(**kw)
-        self.store        = True
-        self.create_w    = create_w
-        self.create_wn   = create_wn
-        self.t_Vn         = t_Vn
+        self.store     = True
+        self.create_w  = create_w
+        self.create_wn = create_wn
+        self.t_Vn      = t_Vn
         
-        self.trunk        = trunk
-        self.nF           = nF
-        self.final_zero   = final_zero
-        self.final_bias   = final_bias
+        self.trunk      = trunk
+        self.nF         = nF
+        self.final_zero = final_zero
+        self.final_bias = final_bias
         
         self.action_dtype = action_dtype
         self.model_class  = model_class
         
         if endbatch > nbatch: endbatch = nbatch - 1
-        self.endbatch     = endbatch
-        self.nbuffer      = nbuffer
-        self.nbatch       = nbatch
-        self.rndbatch     = rndbatch
-        self.buffer       = deque(maxlen=self.nbuffer)
+        self.endbatch = endbatch
+        self.nbuffer  = nbuffer
+        self.nbatch   = nbatch
+        self.rndbatch = rndbatch
+        self.buffer   = deque(maxlen=self.nbuffer)
         
         self.load_weights_ = load_weights
         self.save_weights_ = save_weights
@@ -172,10 +172,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        self.wϴ = self.create_model(net_str='wϴ',  
-                                    αq=self.αq, αv=self.αv, 
-                                    final_bias=self.final_bias, 
-                                    model_class=nnACcSharedModel) # continuous actions
+        self.wϴ = self.create_model(net_str='wϴ',  model_class=nnACcSharedModel) # continuous actions
         self.policy = self.Gaussian
 
     def init_(self):
@@ -286,7 +283,7 @@ nnRollout replaces the replay buffer with a rollout buffer for on-policy methods
 It collects full trajectories, computes GAE advantages, and supports multiple epochs
 over the same rollout.
 '''
-class nnRollout(nnMRP):
+class nnPGcrollout(nnPGc):
     def __init__(self, nsteps=128, epochs=4, λ=0.95, **kw):
         super().__init__(create_w=False, **kw)
         self.nsteps = nsteps
@@ -349,7 +346,7 @@ PPO — Proximal Policy Optimisation.
 Inherits Gaussian policy and ϴ network from nnPGc, rollout buffer and GAE from nnRollout.
 The student only needs to see this class.
 '''
-class PPO(nnPGc, nnRollout):
+class PPO(nnPGcrollout):
     def __init__(self, ε_clip=0.2, **kw):
         super().__init__(**kw)
         self.ε_clip = ε_clip

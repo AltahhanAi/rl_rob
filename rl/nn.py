@@ -27,6 +27,7 @@ from torch.nn.utils import clip_grad_norm_
 from collections import deque
 from random import sample
 from math import prod
+from torch.distributions import Normal
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, net_str='', final_bias=True, **kw):
@@ -231,7 +232,7 @@ class nnACSharedModel(nnSplitModel):
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
             if s_batch: return V, π
             return V[0], π[0]
-            
+
 # ===============================================================================================
 class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, **kw):
@@ -247,7 +248,7 @@ class nnACcSharedModel(nnACSharedModel):
 
     def logπ(self, s, a):
         V, μ, σ = self(s)
-        dist = torch.distributions.Normal(μ, σ)
+        dist = Normal(μ, σ)
         return V, dist.log_prob(a).sum(dim=-1), dist
 
     def entropy(self, dist):
@@ -261,6 +262,6 @@ class nnACcSharedModel(nnACSharedModel):
         self.eval()
         with torch.no_grad():
             V, μ, σ = self(s)
-            a = μ if deterministic else torch.distributions.Normal(μ, σ).sample()
+            a = μ if deterministic else Normal(μ, σ).sample()
             if s_batch: return V, a
             return V[0], a[0]
