@@ -256,7 +256,7 @@ class nnACcModel(nnACModel):
             V, μ, σ = self(s)
             a = μ if deterministic else torch.distributions.Normal(μ, σ).sample()
             if s_batch: return V, a
-            return V[0], π[0] a[0]
+            return V[0], a[0]
 
 # ================ nnMRP, nnMDP, PG Classes with Neural Net =====================================
 class nnMRP(MRP):
