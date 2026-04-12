@@ -136,7 +136,7 @@ class nnPG(PG(nnMDP)):
         # nnAC_SharedModel returns two part the V for the critic and Mu and sigma for the Actor
         # no need to initilaise the w independently unless we do nto want to share the same 
         # trunk between the actor and the critic
-        self.wϴ = self.create_model('wϴ',  αa=self.αa, αc=self.αc, self.final_bias, model_class=nnAC_SharedModel) 
+        self.wϴ = self.create_model(net_str='wϴ',  αa=self.αa, αc=self.αc, final_bias=self.final_bias, model_class=nnAC_SharedModel) 
         self.policy = self.softmax
 
     def init_(self):
@@ -171,7 +171,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        self.wϴ = self.create_model('wϴ',  αa=self.αa, αc=self.αc, self.final_bias, model_class=nnAC_SharedModel) 
+        self.wϴ = self.create_model(net_str='wϴ',  αa=self.αa, αc=self.αc, final_bias=self.final_bias, model_class=nnAC_SharedModel) 
 
         self.policy = self.Gaussian
 
