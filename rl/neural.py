@@ -108,11 +108,11 @@ class nnMRP(MRP):
 
 # ===============================================================================================
 class nnMDP(MDP(nnMRP)):
-    def __init__(self, create_w=False, create_Wn=True, t_Qn=1000, **kw):
+    def __init__(self, create_w=False, create_W=True, create_Wn=True, t_Qn=1000, **kw):
         super().__init__(create_w=create_w, **kw)
         self.create_Wn = create_Wn
         self.t_Qn = t_Qn
-        self.W  = self.create_model('Q',  self.model_class)
+        self.W  = self.create_model('Q',  self.model_class) if create_W else None
         self.Wn = self.create_model('Qn', self.model_class) if create_Wn else None
 
     def init_(self):
@@ -132,8 +132,8 @@ class nnMDP(MDP(nnMRP)):
 
 # ===============================================================================================
 class nnPG(PG(nnMDP)):
-    def __init__(self, **kw):
-        super().__init__( **kw)
+    def __init__(self,  **kw):
+        super().__init__(create_w=False, create_W=False, create_Wn=False, **kw)
         # nnAC_SharedModel returns two part the V for the critic and Mu and sigma for the Actor
         # no need to initilaise the w independently unless we do nto want to share the same 
         # trunk between the actor and the critic
