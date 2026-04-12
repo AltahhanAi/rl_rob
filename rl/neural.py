@@ -137,7 +137,7 @@ class nnPG(PG(nnMDP)):
         # no need to initilaise the w independently unless we do nto want to share the same 
         # trunk between the actor and the critic
         self.wϴ = self.create_model(net_str='wϴ',  
-                                    αa=self.αa, αc=self.αc, 
+                                    αq=self.αq, αv=self.αv, 
                                     final_bias=self.final_bias, 
                                     model_class=nnACSharedModel) # discrete actions
         self.policy = self.softmax
@@ -175,7 +175,7 @@ class nnPGc(PG(nnMDP)):
         self.Tσ   = Tσ
         self.σmin = σmin
         self.wϴ = self.create_model(net_str='wϴ',  
-                                    αa=self.αa, αc=self.αc, 
+                                    αq=self.αq, αv=self.αv, 
                                     final_bias=self.final_bias, 
                                     model_class=nnACcSharedModel) # continuous actions
         self.policy = self.Gaussian

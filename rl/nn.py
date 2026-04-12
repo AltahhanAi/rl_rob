@@ -182,12 +182,12 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αc=1e-3, αa=1e-4, **kw):
+    def __init__(self, out_dim, αv=1e-3, αq=1e-4, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
         critic_params = list(self.layers.parameters()) + list(self.head1.parameters())  # trunk + V head
         actor_params  = list(self.head2.parameters())                                   # π head only
-        self.optim_c  = optim.Adam(critic_params, lr=αc)
-        self.optim_a  = optim.Adam(actor_params,  lr=αa)
+        self.optim_c  = optim.Adam(critic_params, lr=αv)
+        self.optim_a  = optim.Adam(actor_params,  lr=αq)
 
     def forward(self, x):
         V, logits = super().forward(x)
