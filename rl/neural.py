@@ -65,18 +65,28 @@ class nnMRP(MRP):
 
     def step_0(self):
         s,a = super().step_0()
-        return s.unsqueeze(0),a.unsqueeze(0)
+        a = torch.tensor(a,  dtype=self.action_dtype).unsqueeze(0)
+        s = torch.tensor(s,    dtype=torch.float32).unsqueeze(0)
+        return s,a
     
     # accommodates Q-learning and V-style algorithms
     def step_a(self, s,_, t):                          
-        rn,sn, a,None, done = super().step_a(s,_, t)
-        return rn.unsqueeze(0),sn.unsqueeze(0), a.unsqueeze(0), None, done.unsqueeze(0)
+        rn,sn, a,_, done = super().step_a(s,_, t)
+        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0)
+        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0)
+        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0)
+        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0)
+        return rn, sn, a, None, done
 
     # accomodates Sarsa style algorithms
     def step_an(self, s,a, t):   
         rn,sn, a,an, done = super().step_an(s,a, t)
-
-        return rn.unsqueeze(0),sn.unsqueeze(0), a.unsqueeze(0),an.unsqueeze(0), done.unsqueeze(0)
+        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0)
+        an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0)
+        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0)
+        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0)
+        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0)
+        return rn,sn, a,an, done
 
 
     def create_model(self, net_str, model_class):
@@ -103,11 +113,11 @@ class nnMRP(MRP):
 
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
         self.buffer.append((
-            torch.tensor(s,    dtype=torch.float32).unsqueeze(0),
-            torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0),
-            torch.tensor(rn,   dtype=torch.float32).unsqueeze(0),
-            torch.tensor(sn,   dtype=torch.float32).unsqueeze(0),
-            torch.tensor(done, dtype=torch.bool).unsqueeze(0)
+            torch.tensor(s,    dtype=torch.float32),
+            torch.tensor(a,    dtype=self.action_dtype),
+            torch.tensor(rn,   dtype=torch.float32),
+            torch.tensor(sn,   dtype=torch.float32),
+            torch.tensor(done, dtype=torch.bool)
         ))
         
     def slice(self, nbatch):
