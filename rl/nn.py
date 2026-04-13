@@ -91,9 +91,8 @@ class nnModel(nn.Module):
         with torch.no_grad():
             return self(s) if s_batch else self(s)[0]
 
-
     def init_weights(self, final_zero):
-        print(f'training afresh so resetting the weights {self.net_str}')
+        # print(f'training afresh so resetting the weights {self.net_str}')
         gain = init.calculate_gain('relu')
         for layer in self.layers:
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
@@ -101,10 +100,24 @@ class nnModel(nn.Module):
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
         if final_zero and isinstance(self.layers[-1], nn.Linear):
-            print('setting final layer weights to 0')
-            init.zeros_(self.layers[-1].weight)
+            # print('setting final layer weights to 0')
+            init.ones_(self.layers[-1].weight*.5)
         if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
         else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
+
+    # def init_weights(self, final_zero):
+    #     # print(f'training afresh so resetting the weights {self.net_str}')
+    #     gain = init.calculate_gain('relu')
+    #     for layer in self.layers:
+    #         if isinstance(layer, (nn.Linear, nn.Conv2d)):
+    #             init.xavier_normal_(layer.weight, gain=gain)
+    #             if layer.bias is not None:
+    #                 init.zeros_(layer.bias)
+    #     if final_zero and isinstance(self.layers[-1], nn.Linear):
+    #         # print('setting final layer weights to 0')
+    #         init.zeros_(self.layers[-1].weight)
+    #     if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
+    #     else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
 
     def load_weights(self, net_str):
         print(self.loading_msg % net_str)

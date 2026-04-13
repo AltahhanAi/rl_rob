@@ -16,7 +16,7 @@ from env.grid.neural import *
 class nnMRP(MRP):
     def __init__(self,
                  trunk=[],
-                 final_zero=False,
+                 final_zero=True,
                  final_bias=False,
                  nF=None, rndbatch=True,
                  nbuffer=1, nbatch=1, endbatch=1,
@@ -51,7 +51,7 @@ class nnMRP(MRP):
         
         self.load_weights_ = load_weights
         self.save_weights_ = save_weights
-        self.t_           = 0
+        self.t_ = 0
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
 
@@ -92,13 +92,19 @@ class nnMRP(MRP):
             torch.tensor(done, dtype=torch.bool)
         ))
 
-    def slice_(self, buffer, nbatch):
+    def slice(self, nbatch):
+        buffer = self.buffer
         return list(islice(buffer, len(buffer) - nbatch, len(buffer)))
 
-    def batch(self):
-        endbatch = self.endbatch
-        samples  = sample(self.buffer, self.nbatch - endbatch) if self.rndbatch else self.slice_(self.buffer, self.nbatch)
-        samples.extend(self.slice_(self.buffer, self.endbatch))
+    def batch(self, nbatch=None, endbatch=None):
+        nbatch = self.nbatch if nbatch is None else nbatch
+        endbatch = self.endbatch if endbatch is None else endbatch
+        
+        # sample the last element when the use pass -1
+        if nbatch == -1: samples = sample(self.buffer, 0)
+        else:            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
+        
+        samples.extend(self.slice(endbatch))
         s, a, rn, sn, dones = zip(*samples)
         s     = torch.stack(s)
         a     = torch.stack(a)
