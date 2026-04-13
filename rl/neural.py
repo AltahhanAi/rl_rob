@@ -61,14 +61,6 @@ class nnMRP(MRP):
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
 
-    def type_convert(self, rn,sn, a,an, done):
-        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0) if rn is not None else rn
-        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0) if sn is not None else sn
-        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0) if a is not None else a
-        an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0) if an is not None else an
-        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0) if done is not None else done
-        return rn,sn, a,an, done
-
     def create_model(self, net_str, model_class):
         self.state_dim  = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
@@ -85,18 +77,26 @@ class nnMRP(MRP):
     #     result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
     #     return result.detach().numpy()
 
+    # def V(self, s=None):
+    #     result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
+    #     return result.detach().numpy().squeeze(-1)  # (nS,1) → (nS,)
+
     def V(self, s=None):
         result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
-        return result.detach().numpy().squeeze(-1)  # (nS,1) → (nS,)
+        return np.squeeze(result.detach().numpy())
+        
+    # def Vn(self, sn):
+    #     return self.wn.predict(sn, self.state_dim) if self.create_wn else None
 
     def Vn(self, sn):
-        return self.wn.predict(sn, self.state_dim) if self.create_wn else None
+        if not self.create_wn: return None
+        return np.squeeze(self.wn.predict(sn, self.state_dim).detach().numpy())
 
     def allocate(self):
         self.buffer = deque(maxlen=self.nbuffer)
 
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
-        s = torch.tensor(s,    dtype=torch.float32)
+    
         self.buffer.append((s,a,rn,sn,done))
         
     # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
@@ -107,6 +107,16 @@ class nnMRP(MRP):
     #     torch.tensor(sn,   dtype=torch.float32),
     #     torch.tensor(done, dtype=torch.bool)
     # ))
+    # called after the step obtained the data to directly capture 
+    def type_convert(self,s, rn,sn, a,an, done):
+        s = torch.tensor(s,    dtype=torch.float32).unsqueeze(0) if s is not None else s
+        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0) if rn is not None else rn
+        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0) if sn is not None else sn
+        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0) if a is not None else a
+        an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0) if an is not None else an
+        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0) if done is not None else done
+        return s,rn,sn, a,an, done
+
     def slice(self, nbatch):
         buffer = self.buffer
         return list(islice(buffer, len(buffer) - nbatch, len(buffer)))
@@ -261,10 +271,11 @@ class nnMC(nnMRP):
             s, _, rn, _, _ = self.buffer[t]
             Gt = self.γ*Gt + rn
             Vs  = self.w(s)
-            self.w.fit(Vs, Gt.view_as(Vs))           # backprop handles multilayer learning
+            self.w.fit(Vs, Gt)           # backprop handles multilayer learning
             
 # ===============================================================================================
 class nnTDf(nnMRP):
+    
     def init(self):
         self.nbuffer = self.max_t                # all nnMRP and subclasses stores 
         
@@ -276,18 +287,15 @@ class nnTDf(nnMRP):
         for t in range(self.t, -1, -1):
             s, _, rn, sn, done = self.buffer[t]
             Vs  = self.w(s)
-            Vn  = self.w(sn).detach()                        # semi gradient Vn must be detached
-            self.w.fit(Vs, self.γ*Vn + rn.view_as(Vn))       # backprop handles multilayer learning
-            
+            Vn  = self.w(sn).detach()                           # semi gradient Vn must be detached
+            self.w.fit(Vs, (1 - done.float())*self.γ*Vn + rn)   # backprop handles multilayer learning
 # =============================================================================================== 
 class nnTD(nnMRP):
     # ----------------------------- 🌖 online learning ------------------------------
     def online(self, s, rn,sn, done, *args): 
         Vs  = self.w(s)
-        Vn  = self.w(sn).detach()                # detach ensures semi-gradient
-        Vn[done] = 0                             # = (1-done)*V(sn)
-        
-        self.w.fit(Vs, self.γ*Vn + rn.unsqueeze(1))           # backprop handels multi-layer learning
+        Vn  = self.w(sn).detach()                              # detach ensures semi-gradient        
+        self.w.fit(Vs, (1-done.float())*self.γ * Vn  + rn)     # backprop handels multi-layer learning
 # ===============================================================================================
 class TDN(nnMRP):
     # ----------------------------- 🌖 online learning ----------------------  
@@ -297,22 +305,20 @@ class TDN(nnMRP):
         
         Vs  = self.w(s)
         Vn  = self.w(sn).detach()
-        Vn[dones] = 0
         
-        self.w.fit(Vs, self.γ * Vn + rn.unsqueeze(1))
+        self.w.fit(Vs, (1 - dones.float())*self.γ * Vn + rn)
 # ===============================================================================================
 class TDN_with_target(nnMRP):
     def online(self, *args):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
-        Vs  = self.w(s)
-        Vn  = self.wn(sn).detach() if self.create_wn and self.ep > 2 else self.w(sn).detach()
-        Vn[dones] = 0
-        targets = self.γ * Vn + rn.unsqueeze(1)
-        loss = self.w.fit(Vs, targets, exact=True)
+        Vs = self.w(s)
+        Vn = self.Vn(sn) if self.create_wn and self.ep > 2 else self.w(sn).detach().squeeze(-1)
+        Vn = Vn * (1 - dones.float())
+        targets = self.γ * Vn + rn
+        loss = self.w.fit(Vs, targets)
         if self.t_Vn and self.t_ % self.t_Vn == 0 and self.create_wn:
             self.wn.set_weights(self.w, 'V', self.t_)
-
 # ===============================================================================================
 class DQN(nnMDP):
     def online(self, *args):

@@ -61,11 +61,17 @@ class nnModel(nn.Module):
             feat_in = self.flatten_dim(inp_dim)
         return feat_in
 
+    # def forward(self, x):
+    #     for l, layer in enumerate(self.layers[:-1]):
+    #         x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+    #     return self.layers[-1](x)
+
     def forward(self, x):
         for l, layer in enumerate(self.layers[:-1]):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
-        return self.layers[-1](x)
-
+        out = self.layers[-1](x)
+        return out.squeeze(-1) if out.shape[-1] == 1 else out
+        
     def flatten_dim(self, inp_dim):
         with torch.no_grad():
             x = torch.zeros(1, *inp_dim)
