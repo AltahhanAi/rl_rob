@@ -107,23 +107,45 @@ class nnMRP(MRP):
         buffer = self.buffer
         return list(islice(buffer, len(buffer) - nbatch, len(buffer)))
 
-    def batch(self, nbatch=None, endbatch=None):
-        nbatch = self.nbatch if nbatch is None else nbatch
-        endbatch = self.endbatch if endbatch is None else endbatch
-        
-        # sample the last element when the use pass -1
-        if nbatch == -1: samples = sample(self.buffer, 0)
-        else:            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
 
-        samples.extend(self.slice(endbatch))
+    def batch(self, nbatch=None, endbatch=None):
+        nbatch   = self.nbatch   if nbatch   is None else nbatch
+        endbatch = self.endbatch if endbatch is None else endbatch
+
+        if nbatch == -1:
+            samples = [self.buffer[-1]]
+        else:
+            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
+            samples.extend(self.slice(endbatch))
+
         s, a, rn, sn, dones = zip(*samples)
-        s     = torch.stack(s)
-        a     = torch.stack(a)
-        rn    = torch.stack(rn)
-        sn    = torch.stack(sn)
-        dones = torch.stack(dones)
-        inds  = torch.arange(len(samples))
+
+        s     = torch.cat(s, dim=0)
+        a     = torch.cat(a, dim=0)
+        rn    = torch.cat(rn, dim=0)
+        sn    = torch.cat(sn, dim=0)
+        dones = torch.cat(dones, dim=0)
+
+        inds = torch.arange(len(samples))
         return (s, a, rn, sn, dones), inds
+        
+    # def batch(self, nbatch=None, endbatch=None):
+    #     nbatch = self.nbatch if nbatch is None else nbatch
+    #     endbatch = self.endbatch if endbatch is None else endbatch
+        
+    #     # sample the last element when the use pass -1
+    #     if nbatch == -1: samples = sample(self.buffer, 0)
+    #     else:            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
+
+    #     samples.extend(self.slice(endbatch))
+    #     s, a, rn, sn, dones = zip(*samples)
+    #     s     = torch.stack(s)
+    #     a     = torch.stack(a)
+    #     rn    = torch.stack(rn)
+    #     sn    = torch.stack(sn)
+    #     dones = torch.stack(dones)
+    #     inds  = torch.arange(len(samples))
+    #     return (s, a, rn, sn, dones), inds
 
 # ===============================================================================================
 class nnMDP(MDP(nnMRP)):
