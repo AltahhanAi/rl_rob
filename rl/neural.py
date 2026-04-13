@@ -63,6 +63,22 @@ class nnMRP(MRP):
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
 
+    def step_0(self):
+        s,a = super().step_0()
+        return s.unsqueeze(0),a.unsqueeze(0)
+    
+    # accommodates Q-learning and V-style algorithms
+    def step_a(self, s,_, t):                          
+        rn,sn, a,None, done = super().step_a(s,_, t)
+        return rn.unsqueeze(0),sn.unsqueeze(0), a.unsqueeze(0), None, done.unsqueeze(0)
+
+    # accomodates Sarsa style algorithms
+    def step_an(self, s,a, t):   
+        rn,sn, a,an, done = super().step_an(s,a, t)
+
+        return rn.unsqueeze(0),sn.unsqueeze(0), a.unsqueeze(0),an.unsqueeze(0), done.unsqueeze(0)
+
+
     def create_model(self, net_str, model_class):
         self.state_dim  = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
@@ -84,15 +100,6 @@ class nnMRP(MRP):
 
     def allocate(self):
         self.buffer = deque(maxlen=self.nbuffer)
-
-    # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
-    #     self.buffer.append((
-    #         torch.tensor(s,    dtype=torch.float32),
-    #         torch.tensor(a,    dtype=self.action_dtype),
-    #         torch.tensor(rn,   dtype=torch.float32),
-    #         torch.tensor(sn,   dtype=torch.float32),
-    #         torch.tensor(done, dtype=torch.bool)
-    #     ))
 
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
         self.buffer.append((
@@ -131,24 +138,6 @@ class nnMRP(MRP):
 
         inds = torch.arange(len(samples))
         return (s, a, rn, sn, dones), inds
-        
-    # def batch(self, nbatch=None, endbatch=None):
-    #     nbatch = self.nbatch if nbatch is None else nbatch
-    #     endbatch = self.endbatch if endbatch is None else endbatch
-        
-    #     # sample the last element when the use pass -1
-    #     if nbatch == -1: samples = sample(self.buffer, 0)
-    #     else:            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
-
-    #     samples.extend(self.slice(endbatch))
-    #     s, a, rn, sn, dones = zip(*samples)
-    #     s     = torch.stack(s)
-    #     a     = torch.stack(a)
-    #     rn    = torch.stack(rn)
-    #     sn    = torch.stack(sn)
-    #     dones = torch.stack(dones)
-    #     inds  = torch.arange(len(samples))
-    #     return (s, a, rn, sn, dones), inds
 
 # ===============================================================================================
 class nnMDP(MDP(nnMRP)):
