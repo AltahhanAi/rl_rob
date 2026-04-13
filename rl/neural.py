@@ -112,14 +112,16 @@ class nnMRP(MRP):
         self.buffer = deque(maxlen=self.nbuffer)
 
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
-        self.buffer.append((
-            torch.tensor(s,    dtype=torch.float32),
-            torch.tensor(a,    dtype=self.action_dtype),
-            torch.tensor(rn,   dtype=torch.float32),
-            torch.tensor(sn,   dtype=torch.float32),
-            torch.tensor(done, dtype=torch.bool)
-        ))
+        self.buffer.append(s,a,rn,sn,done)
         
+    # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
+    #     self.buffer.append((
+    #     torch.tensor(s,    dtype=torch.float32),
+    #     torch.tensor(a,    dtype=self.action_dtype),
+    #     torch.tensor(rn,   dtype=torch.float32),
+    #     torch.tensor(sn,   dtype=torch.float32),
+    #     torch.tensor(done, dtype=torch.bool)
+    # ))
     def slice(self, nbatch):
         buffer = self.buffer
         return list(islice(buffer, len(buffer) - nbatch, len(buffer)))
