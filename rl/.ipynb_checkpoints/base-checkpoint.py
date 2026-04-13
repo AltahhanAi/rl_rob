@@ -198,6 +198,7 @@ class MRP:
                 #print(self.ep)
                 # initial step
                 s,a = self.step_0()
+                _,s,a,_,_ = self.type_convert(None,s, a,None, None)
                 self.step0()                                    # user defined init of each episode
                 # an episode is a set of steps, interact and learn from experience, online or offline.
                 while not self.stop_ep(done):
@@ -209,8 +210,9 @@ class MRP:
 
                     # keep the order, do not change
                     rn,sn, a,an, done = self.step(s,a, self.t)                # takes a step in env and stores the trajectory if needed
+                    rn,sn, a,an, done = self.type_convert(rn,sn, a,an, done ) # convert the data if necessary
                     self.store_(s=s, a=a, rn=rn, sn=sn, done=done, t=self.t)  # we added s=s for compatibility with deep learning
-                    self.online(s, rn,sn, done, a,an) if train else None      # to learn online, pass a one step trajectory
+                    self.online(s, rn, sn, done, a, an) if train else None # to learn online, pass a one step trajectory
     
                     self.Σr += rn
                     self.rn = rn
@@ -302,6 +304,8 @@ class MRP:
         pass
     def online(self,*args):
         pass
+    def type_convert(self, rn,sn, a,an, done):
+        return rn,sn, a,an, done 
     
     # infrastructure for saving an object, useful for long experiments that can crash
     def selfsave(self, overwrite):

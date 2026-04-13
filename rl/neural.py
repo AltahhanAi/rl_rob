@@ -16,7 +16,6 @@ from env.grid.neural import *
 class nnMRP(MRP):
     def __init__(self,
                  trunk=[],
-                 final_zero=True,
                  final_bias=False,
                  nF=None, rndbatch=True,
                  nbuffer=1, nbatch=1, endbatch=1,
@@ -38,7 +37,6 @@ class nnMRP(MRP):
         
         self.trunk      = trunk
         self.nF         = nF
-        self.final_zero = final_zero
         self.final_bias = final_bias
         
         self.action_dtype = action_dtype
@@ -59,35 +57,17 @@ class nnMRP(MRP):
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(self.final_zero)
+        self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(final_v0=self.v0)
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
 
-    def step_0(self):
-        s,a = super().step_0()
-        a = torch.tensor(a,  dtype=self.action_dtype).unsqueeze(0)
-        s = torch.tensor(s,    dtype=torch.float32).unsqueeze(0)
-        return s,a
-    
-    # accommodates Q-learning and V-style algorithms
-    def step_a(self, s,_, t):                          
-        rn,sn, a,_, done = super().step_a(s,_, t)
-        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0)
-        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0)
-        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0)
-        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0)
-        return rn, sn, a, None, done
-
-    # accomodates Sarsa style algorithms
-    def step_an(self, s,a, t):   
-        rn,sn, a,an, done = super().step_an(s,a, t)
-        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0)
-        an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0)
-        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0)
-        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0)
-        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0)
+    def type_convert(self, rn,sn, a,an, done):
+        rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0) if rn is not None else rn
+        sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0) if sn is not None else sn
+        a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0) if a is not None else a
+        an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0) if an is not None else an
+        done = torch.tensor(done, dtype=torch.bool).unsqueeze(0) if done is not None else done
         return rn,sn, a,an, done
-
 
     def create_model(self, net_str, model_class):
         self.state_dim  = self.env.reset().shape
@@ -101,9 +81,13 @@ class nnMRP(MRP):
         if self.model_summary: model.print_model_summary(net_str)
         return model
 
+    # def V(self, s=None):
+    #     result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
+    #     return result.detach().numpy()
+
     def V(self, s=None):
         result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
-        return result.detach().numpy()
+        return result.detach().numpy().squeeze(-1)  # (nS,1) → (nS,)
 
     def Vn(self, sn):
         return self.wn.predict(sn, self.state_dim) if self.create_wn else None
@@ -112,7 +96,8 @@ class nnMRP(MRP):
         self.buffer = deque(maxlen=self.nbuffer)
 
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
-        self.buffer.append(s,a,rn,sn,done)
+        s = torch.tensor(s,    dtype=torch.float32)
+        self.buffer.append((s,a,rn,sn,done))
         
     # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
     #     self.buffer.append((
@@ -163,8 +148,8 @@ class nnMDP(MDP(nnMRP)):
     def init_(self):
         torch.manual_seed(self.seed)
         if self.create_w:
-            self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(self.final_zero)
-        self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(self.final_zero)
+            self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(final_v0=self.v0)
+        self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(final_q0=self.q0)
         self.Wn.eval() if self.create_Wn else None
         self.V_ = self.V
         self.Q_ = self.Q
@@ -187,7 +172,7 @@ class nnPG(PG(nnMDP)):
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(self.final_zero)
+        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(final_v0=self.v0, final_q0=self.q0)
         
         self.V_ = self.V
         # self.Q_ = self.Q
@@ -195,7 +180,7 @@ class nnPG(PG(nnMDP)):
 
     def V(self, s=None):
         V, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
-        return V.detach().numpy()
+        return V.detach().numpy().squeeze(-1)
 
     def H(self, s=None, a=None):
         _, π = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
@@ -224,13 +209,13 @@ class nnPGc(PG(nnMDP)):
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(self.final_zero)
+        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(final_v0=self.v0, final_q0=self.q0)
         self.V_ = self.V
         # self.Q_ = self.Q
 
     def V(self, s=None):
         V, _, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
-        return V.detach().numpy()
+        return V.detach().numpy().squeeze(-1)
 
     def μ_π(self, s):
         _, μ, _ = self.wϴ.predict(s, self.state_dim)
@@ -259,7 +244,64 @@ class nnPGc(PG(nnMDP)):
         return np.sum(-((a - μ)**2) / (2 * σ**2) - np.log(σ) - .5 * np.log(2 * np.pi))
 
 # ===============================================================================================
+class nnMC(nnMRP):
+    
+    # at the start of the run
+    def init(self):
+        self.nbuffer = self.max_t # nnMRP stores in a buffer always
+        
+    # at the start of the episode
+    def step0(self):
+        self.buffer.clear() # clear the buffer after each episode
+    # --------------- 🌘 offline, MC learning: end-of-episode learning ----------------  
+    def offline(self):
+        # obtain the return for the latest episode
+        Gt = 0
+        for t in range(self.t, -1, -1):
+            s, _, rn, _, _ = self.buffer[t]
+            Gt = self.γ*Gt + rn
+            Vs  = self.w(s)
+            self.w.fit(Vs, Gt.view_as(Vs))           # backprop handles multilayer learning
+            
+# ===============================================================================================
+class nnTDf(nnMRP):
+    def init(self):
+        self.nbuffer = self.max_t                # all nnMRP and subclasses stores 
+        
+    def step0(self):
+        self.buffer.clear()                      # clear the buffer after each episode
+    
+    # --------------- 🌘 offline TD learning: end-of-episode learning ----------------  
+    def offline(self):
+        for t in range(self.t, -1, -1):
+            s, _, rn, sn, done = self.buffer[t]
+            Vs  = self.w(s)
+            Vn  = self.w(sn).detach()                        # semi gradient Vn must be detached
+            self.w.fit(Vs, self.γ*Vn + rn.view_as(Vn))       # backprop handles multilayer learning
+            
+# =============================================================================================== 
+class nnTD(nnMRP):
+    # ----------------------------- 🌖 online learning ------------------------------
+    def online(self, s, rn,sn, done, *args): 
+        Vs  = self.w(s)
+        Vn  = self.w(sn).detach()                # detach ensures semi-gradient
+        Vn[done] = 0                             # = (1-done)*V(sn)
+        
+        self.w.fit(Vs, self.γ*Vn + rn.unsqueeze(1))           # backprop handels multi-layer learning
+# ===============================================================================================
 class TDN(nnMRP):
+    # ----------------------------- 🌖 online learning ----------------------  
+    def online(self, *args):
+        if len(self.buffer) < self.nbatch: return  # wait until we have nbatch entries in the buffer
+        (s, _, rn, sn, dones), _ = self.batch() # note that we are taking a batch now instead of one buffer item
+        
+        Vs  = self.w(s)
+        Vn  = self.w(sn).detach()
+        Vn[dones] = 0
+        
+        self.w.fit(Vs, self.γ * Vn + rn.unsqueeze(1))
+# ===============================================================================================
+class TDN_with_target(nnMRP):
     def online(self, *args):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
@@ -430,5 +472,5 @@ class PPO(nnPGcrollout):
 #           trunk=[(8,4,2),(4,4,4)], nF=64,
 #           nsteps=128, epochs=4, λ=0.95,
 #           ε_clip=0.2,
-#           final_zero=True, final_bias=True,
+#           v0=0, final_bias=True,
 #           file_name='PPO_exp').interact()

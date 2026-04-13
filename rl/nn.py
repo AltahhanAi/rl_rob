@@ -75,12 +75,24 @@ class nnModel(nn.Module):
     def fit(self, vals, targets, exact=True):
         self.train()
         self.optim.zero_grad()
+        vals    = vals.squeeze(-1)    # to avoid having to call unsqueeze(1) elsewhere
+        targets = targets.squeeze(-1) # to avoid having to call unsqueeze(1) elsewhere
         if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
         else:     loss = .5 * F.mse_loss(vals, targets)
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
         self.optim.step()
         return loss.item()
+        
+    # def fit(self, vals, targets, exact=True):
+    #     self.train()
+    #     self.optim.zero_grad()
+    #     if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
+    #     else:     loss = .5 * F.mse_loss(vals, targets)
+    #     loss.backward()
+    #     clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
+    #     self.optim.step()
+    #     return loss.item()
 
     def predict(self, s, state_dim):
         if not isinstance(s, torch.Tensor):
@@ -91,33 +103,22 @@ class nnModel(nn.Module):
         with torch.no_grad():
             return self(s) if s_batch else self(s)[0]
 
-    def init_weights(self, final_zero):
-        # print(f'training afresh so resetting the weights {self.net_str}')
+
+    def init_weights(self, final_v0=None, skip_from=None):
         gain = init.calculate_gain('relu')
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
-                init.xavier_normal_(layer.weight, gain=gain)
+                is_final = (i == len(self.layers) - 1)
+                if skip_from is not None and i >= skip_from:
+                    continue
+                if final_v0 is not None and is_final:
+                    init.constant_(layer.weight, final_v0)
+                else:
+                    init.xavier_normal_(layer.weight, gain=gain)
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
-        if final_zero and isinstance(self.layers[-1], nn.Linear):
-            # print('setting final layer weights to 0')
-            init.zeros_(self.layers[-1].weight)
         if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
         else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
-
-    # def init_weights(self, final_zero):
-    #     # print(f'training afresh so resetting the weights {self.net_str}')
-    #     gain = init.calculate_gain('relu')
-    #     for layer in self.layers:
-    #         if isinstance(layer, (nn.Linear, nn.Conv2d)):
-    #             init.xavier_normal_(layer.weight, gain=gain)
-    #             if layer.bias is not None:
-    #                 init.zeros_(layer.bias)
-    #     if final_zero and isinstance(self.layers[-1], nn.Linear):
-    #         # print('setting final layer weights to 0')
-    #         init.zeros_(self.layers[-1].weight)
-    #     if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
-    #     else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
 
     def load_weights(self, net_str):
         print(self.loading_msg % net_str)
@@ -184,6 +185,14 @@ class nnSplitModel(nnModel):
         self.layers.append(self.head2)                         # register for summary
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
+    def init_weights(self, final_v0=None, head2_v0=None):
+        super().init_weights(skip_from=self.head_idx)  # trunk only
+        gain = init.calculate_gain('relu')
+        for head, v0 in [(self.head1, final_v0),
+                         (self.head2, head2_v0)]:
+            init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
+            if head.bias is not None: init.zeros_(head.bias)
+            
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
@@ -224,7 +233,7 @@ class nnACSharedModel(nnSplitModel):
         self.train()
         self.optim.zero_grad()
         V, logπ, π = self.logπ(s, a)
-        V     = V.squeeze(1)
+        V     = V.squeeze(-1)
         A     = (Gt - V).detach()
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
         actor_loss    = -(logπ * A).mean()
@@ -246,20 +255,6 @@ class nnACSharedModel(nnSplitModel):
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
             if s_batch: return V, π
             return V[0], π[0]
-
-    # def init_weights(self, final_zero):
-    #     print(f'training afresh so resetting the weights {self.net_str}')
-    #     gain = init.calculate_gain('relu')
-    #     for layer in self.layers:
-    #         if isinstance(layer, (nn.Linear, nn.Conv2d)):
-    #             init.xavier_normal_(layer.weight, gain=gain)
-    #             if layer.bias is not None:
-    #                 init.zeros_(layer.bias)
-    #     if final_zero and isinstance(self.layers[-1], nn.Linear):
-    #         print('setting final layer weights to 0')
-    #         init.zeros_(self.layers[-1].weight)
-    #     # do NOT touch self.optim — it was set up in __init__ with αv/αq groups
-
 
 # ===============================================================================================
 class nnACcSharedModel(nnACSharedModel):
