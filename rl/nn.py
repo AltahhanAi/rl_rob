@@ -101,7 +101,7 @@ class nnModel(nn.Module):
                     init.zeros_(layer.bias)
         if final_zero and isinstance(self.layers[-1], nn.Linear):
             # print('setting final layer weights to 0')
-            init.ones_(self.layers[-1].weight*.5)
+            init.zeros_(self.layers[-1].weight)
         if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
         else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
 

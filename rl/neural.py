@@ -25,9 +25,11 @@ class nnMRP(MRP):
                  create_wn=False, 
                  t_Vn=0,
                  action_dtype=torch.int64,
+                 model_summary=True,
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  **kw):
-        print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------')
+        self.model_summary = model_summary
+        print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------') if model_summary else None
         super().__init__(**kw)
         self.store     = True
         self.create_w  = create_w
@@ -70,7 +72,7 @@ class nnMRP(MRP):
             α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None), 
             net_str=net_str, final_bias=self.final_bias
         )
-        model.print_model_summary(net_str)
+        if self.model_summary: model.print_model_summary(net_str)
         return model
 
     def V(self, s=None):
@@ -83,15 +85,24 @@ class nnMRP(MRP):
     def allocate(self):
         self.buffer = deque(maxlen=self.nbuffer)
 
+    # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
+    #     self.buffer.append((
+    #         torch.tensor(s,    dtype=torch.float32),
+    #         torch.tensor(a,    dtype=self.action_dtype),
+    #         torch.tensor(rn,   dtype=torch.float32),
+    #         torch.tensor(sn,   dtype=torch.float32),
+    #         torch.tensor(done, dtype=torch.bool)
+    #     ))
+
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
         self.buffer.append((
-            torch.tensor(s,    dtype=torch.float32),
-            torch.tensor(a,    dtype=self.action_dtype),
-            torch.tensor(rn,   dtype=torch.float32),
-            torch.tensor(sn,   dtype=torch.float32),
-            torch.tensor(done, dtype=torch.bool)
+            torch.tensor(s,    dtype=torch.float32).unsqueeze(0),
+            torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0),
+            torch.tensor(rn,   dtype=torch.float32).unsqueeze(0),
+            torch.tensor(sn,   dtype=torch.float32).unsqueeze(0),
+            torch.tensor(done, dtype=torch.bool).unsqueeze(0)
         ))
-
+        
     def slice(self, nbatch):
         buffer = self.buffer
         return list(islice(buffer, len(buffer) - nbatch, len(buffer)))
@@ -103,7 +114,7 @@ class nnMRP(MRP):
         # sample the last element when the use pass -1
         if nbatch == -1: samples = sample(self.buffer, 0)
         else:            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
-        
+
         samples.extend(self.slice(endbatch))
         s, a, rn, sn, dones = zip(*samples)
         s     = torch.stack(s)
