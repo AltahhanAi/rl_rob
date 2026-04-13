@@ -114,9 +114,12 @@ class nnMRP(MRP):
 
         if nbatch == -1:
             samples = [self.buffer[-1]]
+        elif self.rndbatch:
+            samples = sample(self.buffer, nbatch - endbatch)
+            if endbatch:
+                samples.extend(self.slice(endbatch))
         else:
-            samples = sample(self.buffer, nbatch - endbatch) if self.rndbatch else self.slice(nbatch)
-            samples.extend(self.slice(endbatch))
+            samples = self.slice(nbatch)
 
         s, a, rn, sn, dones = zip(*samples)
 
