@@ -197,7 +197,7 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv=1e-3, αq=1e-4, **kw):
+    def __init__(self, out_dim, αv, αq, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
         self.optim = optim.Adam([
             {'params': list(self.layers[:self.head_idx].parameters()) +
