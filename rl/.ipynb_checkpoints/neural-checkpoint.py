@@ -265,7 +265,7 @@ class nnMC(nnMRP):
         # obtain the return for the latest episode
         Gt = 0
         for t in range(self.t, -1, -1):
-            s, _, rn, _, _ = self.buffer[t]
+            s, _, rn, _, _ = self.trajectory(t=t)
             Gt = self.γ*Gt + rn
             Vs  = self.w(s)
             self.w.fit(Vs, Gt)           # backprop handles multilayer learning
@@ -282,28 +282,32 @@ class nnTDf(nnMRP):
     # --------------- 🌘 offline TD learning: end-of-episode learning ----------------  
     def offline(self):
         for t in range(self.t, -1, -1):
-            s, _, rn, sn, done = self.buffer[t]
+            s, _, rn, sn, done = self.trajectory(t=t)
             Vs  = self.w(s)
             Vn  = self.w(sn).detach()                           # semi gradient Vn must be detached
             self.w.fit(Vs, (1 - done.float())*self.γ*Vn + rn)   # backprop handles multilayer learning
+
 # =============================================================================================== 
 class nnTD(nnMRP):
     # ----------------------------- 🌖 online learning ------------------------------
-    def online(self, s, rn,sn, done, *args): 
+    def online(self, *args): 
+        s, _, rn, sn, done = self.trajectory(-1) # obtain the latest trajectory
         Vs  = self.w(s)
         Vn  = self.w(sn).detach()                              # detach ensures semi-gradient        
         self.w.fit(Vs, (1-done.float())*self.γ * Vn  + rn)     # backprop handels multi-layer learning
+
 # ===============================================================================================
 class TDN(nnMRP):
     # ----------------------------- 🌖 online learning ----------------------  
     def online(self, *args):
         if len(self.buffer) < self.nbatch: return  # wait until we have nbatch entries in the buffer
         (s, _, rn, sn, dones), _ = self.batch() # note that we are taking a batch now instead of one buffer item
-        
+    
         Vs  = self.w(s)
         Vn  = self.w(sn).detach()
+        Vn[dones] = 0 # equivalent to (1 - dones) but works for a batch
+        self.w.fit(Vs, self.γ * Vn + rn)
         
-        self.w.fit(Vs, (1 - dones.float())*self.γ * Vn + rn)
 # ===============================================================================================
 class TDN_with_target(nnMRP):
     def online(self, *args):
