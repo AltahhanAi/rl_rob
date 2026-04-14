@@ -217,22 +217,41 @@ class nnACSharedModel(nnSplitModel):
         return V, torch.log(π[range(len(a)), a]), π
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
+    
     def fit(self, s, a, Gt):
         self.train()
         self.optim.zero_grad()
-        V, log_prob, π = self.logπ(s, a)                              # 🟢 fix: renamed logπ -> log_prob to avoid shadowing method
-        V  = V.squeeze(-1)                                             # (B,)
-        Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt                    # 🟡 fix: ensure (B,) to prevent silent (B,B) broadcast in mse_loss
+        V, log_prob, π = self.logπ(s, a)
+        V  = V.squeeze(-1)
+        Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
         A  = (Gt - V).detach()
+        
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
-        actor_loss    = -(log_prob * A).mean()
-        entropy_bonus = self.entropy(π)
+        actor_loss    = -(log_prob * A).mean() * self.τ                    # τ scales the policy gradient
+        entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         loss = actor_loss + critic_loss - 0.01 * entropy_bonus
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
         self.optim.step()
         return loss.item()
-    def predict(self, s, state_dim, deterministic=False):
+
+    
+    # def fit(self, s, a, Gt):
+    #     self.train()
+    #     self.optim.zero_grad()
+    #     V, log_prob, π = self.logπ(s, a)                              # 🟢 fix: renamed logπ -> log_prob to avoid shadowing method
+    #     V  = V.squeeze(-1)                                             # (B,)
+    #     Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt                    # 🟡 fix: ensure (B,) to prevent silent (B,B) broadcast in mse_loss
+    #     A  = (Gt - V).detach()
+    #     critic_loss   = 0.5 * F.mse_loss(V, Gt)
+    #     actor_loss    = -(log_prob * A).mean()
+    #     entropy_bonus = self.entropy(π)
+    #     loss = actor_loss + critic_loss - 0.01 * entropy_bonus
+    #     loss.backward()
+    #     clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
+    #     self.optim.step()
+    #     return loss.item()
+    # def predict(self, s, state_dim, deterministic=False):
         if not isinstance(s, torch.Tensor):
             s = torch.tensor(s, dtype=torch.float32)
         s_batch = s.ndim > len(state_dim)
