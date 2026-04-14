@@ -197,8 +197,8 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv, αq, **kw):
-        super().__init__(τ=.25, head1_dim=1, head2_dim=out_dim, **kw)
+    def __init__(self, out_dim, αv, αq, τ=.25, **kw):
+        super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
         self.optim = optim.Adam([
             {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
