@@ -145,7 +145,7 @@ class nnMRP(MRP):
 
 # ===============================================================================================
 class nnMDP(MDP(nnMRP)):
-    def __init__(self, create_w=False, create_W=True, create_Wn=True, t_Qn=1000, **kw):
+    def __init__(self, create_w=False, create_W=True, create_Wn=False, t_Qn=1000, **kw):
         super().__init__(create_w=create_w, **kw)
         self.create_Wn = create_Wn
         self.t_Qn = t_Qn
