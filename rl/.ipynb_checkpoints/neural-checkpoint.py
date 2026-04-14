@@ -57,7 +57,7 @@ class nnMRP(MRP):
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(final_v0=self.v0)
+        self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(head_v0=self.v0)
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
 
@@ -155,8 +155,8 @@ class nnMDP(MDP(nnMRP)):
     def init_(self):
         torch.manual_seed(self.seed)
         if self.create_w:
-            self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(final_v0=self.v0)
-        self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(final_v0=self.q0)
+            self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(head_v0=self.v0)
+        self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(head_v0=self.q0)
         self.Wn.eval() if self.create_Wn else None
         self.V_ = self.V
         self.Q_ = self.Q
