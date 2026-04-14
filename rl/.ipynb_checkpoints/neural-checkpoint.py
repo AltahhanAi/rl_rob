@@ -442,19 +442,23 @@ class DQN(nnMDP):
 
 # ===============================================================================================
 class DDQN(DQN):
+    # ----------------------------- 🌖 online learning ---------------------- 
     def online(self, *args):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
+        
         Qs  = self.W(s)
         an  = self.W(sn).detach().argmax(1)
         Qn  = self.Wn(sn).detach() if self.create_Wn and self.ep > 2 else self.W(sn).detach()
+        
         Qn[dones] = 0
         targets = Qs.clone().detach()
-        targets[inds, a] = self.γ * Qn[inds, an] + rn
-        loss = self.W.fit(Qs, targets, exact=True)
+        targets[inds, a] = self.γ * Qn[inds, an] + rn.squeeze(1)
+        
+        self.W.fit(Qs, targets, exact=True)
+        
         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_Wn:
             self.Wn.set_weights(self.W, 'Q', self.t_)
-
 # ===============================================================================================
 class DuelDQN(DQN):
     def __init__(self, model_class=nnDuelModel, **kw):
