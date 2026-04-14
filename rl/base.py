@@ -210,8 +210,8 @@ class MRP:
 
                     # keep the order, do not change
                     rn,sn, a,an, done = self.step(s,a, self.t)                # takes a step in env and stores the trajectory if needed
-                    s, rn,sn, a,an, done = self.type_convert(s,rn,sn, a,an, done ) # convert the data if necessary
                     self.store_(s=s, a=a, rn=rn, sn=sn, done=done, t=self.t)  # we added s=s for compatibility with deep learning
+                    s, rn,sn, a,an, done = self.type_convert(s,rn,sn, a,an, done ) # convert the data if necessary
                     self.online(s, rn, sn, done, a, an) if train else None # to learn online, pass a one step trajectory
     
                     self.Σr += rn
@@ -304,8 +304,8 @@ class MRP:
         pass
     def online(self,*args):
         pass
-    def type_convert(self, rn,sn, a,an, done):
-        return rn,sn, a,an, done 
+    def type_convert(self, s,rn,sn, a,an, done):
+        return s,rn,sn, a,an, done 
     
     # infrastructure for saving an object, useful for long experiments that can crash
     def selfsave(self, overwrite):

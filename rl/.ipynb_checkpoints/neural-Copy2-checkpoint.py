@@ -92,10 +92,61 @@ class nnMRP(MRP):
         if not self.create_wn: return None
         return np.squeeze(self.wn.predict(sn, self.state_dim).detach().numpy())
 
-    # must not use the buffer directly in learning as it will give unsuitable shaped tensor
     def allocate(self):
         self.buffer = deque(maxlen=self.nbuffer)
 
+    # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
+    #     if not isinstance(s, torch.Tensor):
+    #         s  = torch.tensor(s,    dtype=torch.float32    )
+    #         sn  = torch.tensor(sn,    dtype=torch.float32    )
+            
+    #     self.buffer.append((s,a,rn,sn,done))
+        
+    # def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
+    #     self.buffer.append((
+    #     torch.tensor(s,    dtype=torch.float32),
+    #     torch.tensor(a,    dtype=self.action_dtype),
+    #     torch.tensor(rn,   dtype=torch.float32),
+    #     torch.tensor(sn,   dtype=torch.float32),
+    #     torch.tensor(done, dtype=torch.bool)
+    # ))
+    # called after the step obtained the data to directly capture 
+
+    # def type_convert(self,s, rn,sn, a,an, done):
+    #     s = torch.tensor(s,    dtype=torch.float32) if s is not None else s
+    #     sn = torch.tensor(sn,   dtype=torch.float32) if sn is not None else sn
+        
+    #     rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0) if rn is not None else rn
+    #     a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0) if a is not None else a
+    #     an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0) if an is not None else an
+    #     done = torch.tensor(done, dtype=torch.bool).unsqueeze(0) if done is not None else done
+    #     return s,rn,sn, a,an, done
+    
+    # def type_convert(self,s, rn,sn, a,an, done):
+    #     s = torch.tensor(s,    dtype=torch.float32).unsqueeze(0) if s is not None else s
+    #     rn = torch.tensor(rn,   dtype=torch.float32).unsqueeze(0) if rn is not None else rn
+    #     sn = torch.tensor(sn,   dtype=torch.float32).unsqueeze(0) if sn is not None else sn
+    #     a = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0) if a is not None else a
+    #     an = torch.tensor(an,    dtype=self.action_dtype).unsqueeze(0) if an is not None else an
+    #     done = torch.tensor(done, dtype=torch.bool).unsqueeze(0) if done is not None else done
+    #     return s,rn,sn, a,an, done
+    
+    # def type_convert(self,s, rn,sn, a,an, done):
+    #     if not isinstance(s, torch.Tensor):
+    #         s    = torch.tensor(s,    dtype=torch.float32    ) if s    is not None else s
+    #     else: 
+    #         s = s.unsqueeze(0) if s    is not None else s
+    #     if not isinstance(sn, torch.Tensor):
+    #         sn   = torch.tensor(sn,   dtype=torch.float32    ) if sn   is not None else sn
+    #     else: 
+    #         sn = sn.unsqueeze(0) if sn    is not None else sn
+            
+    #     rn   = torch.tensor(rn,   dtype=torch.float32    ).unsqueeze(0) if rn   is not None else rn
+    #     a    = torch.tensor(a,    dtype=self.action_dtype).unsqueeze(0) if a    is not None else a
+    #     an   = torch.tensor(an,   dtype=self.action_dtype).unsqueeze(0) if an   is not None else an
+    #     done = torch.tensor(done, dtype=torch.bool       ).unsqueeze(0) if done is not None else done
+        
+    #     return s,rn,sn, a,an, done
         
     def slice(self, nbatch):
         buffer = self.buffer
@@ -110,22 +161,14 @@ class nnMRP(MRP):
             torch.tensor(sn,   dtype=torch.float32),
             torch.tensor(done, dtype=torch.bool)
         ))
-
-    # for the life stream to work but it is bit vulnerable
-    # def type_convert(self, s,rn,sn, a,an, done ):
-    #     return self.batch(t=-1)[0]
-    
-    # aliase for batch, sicne batch gurantee that the items returned havee the right shape
-    def trajectory(self, t=-1):
-        return self.batch(t=t)[0]
-    
     def batch(self, nbatch=None, endbatch=None, t=None):
         nbatch   = self.nbatch   if nbatch   is None else nbatch
         endbatch = self.endbatch if endbatch is None else endbatch
 
         if t is not None:
-            samples = [self.buffer[t]]    # get item t from the buffer and convert it
-            
+            samples = [self.buffer[t]]
+        elif nbatch == -1:
+            samples = [self.buffer[-1]]
         elif self.rndbatch:
             samples = sample(self.buffer, nbatch - endbatch)
             if endbatch:
@@ -142,6 +185,15 @@ class nnMRP(MRP):
         dones = torch.stack(dones)
         inds  = torch.arange(len(samples))
         return (s, a, rn, sn, dones), inds
+
+        # s     = torch.cat(s, dim=0)
+        # a     = torch.cat(a, dim=0)
+        # rn    = torch.cat(rn, dim=0)
+        # sn    = torch.cat(sn, dim=0)
+        # dones = torch.cat(dones, dim=0)
+
+        # inds = torch.arange(len(samples))
+        # return (s, a, rn, sn, dones), inds
 
 # ===============================================================================================
 class nnMDP(MDP(nnMRP)):
