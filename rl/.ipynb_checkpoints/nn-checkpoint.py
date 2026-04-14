@@ -223,8 +223,8 @@ class nnACSharedModel(nnSplitModel):
         # V     = V.squeeze(-1)
         A     = (Gt - V).detach()
         
-        # print(V.shape)
-        # print(Gt.shape)
+        print(V.shape)
+        print(Gt.shape)
         
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
         actor_loss    = -(logπ * A).mean()
