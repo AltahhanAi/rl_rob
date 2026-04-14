@@ -160,81 +160,37 @@ class nnModel(nn.Module):
         print(f"Total parameters: {total_params:,} of which {bias_params:,} are bias")
 
 # ==================== Split head models for Dueling and Actor-Critic ===========================
-
-class nnSplitModel(nnModel):
-    def __init__(self, head1_dim, head2_dim, **kw):
-        super().__init__(out_dim=head1_dim, **kw)
-        feat_in    = self.layers[-1].in_features
-        self.layers = self.layers[:-1]                         # remove final layer
-        self.head1  = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
-        self.head2  = nn.Linear(feat_in, head2_dim, bias=self.final_bias)
-        self.layers.append(self.head1)                         # register for summary
-        self.layers.append(self.head2)                         # register for summary
-        self.head_idx = len(self.layers) - 2                   # index where heads start
-
-    def init_weights(self, head1_v0=None, head2_q0=None):
-        super().init_weights(skip_from=self.head_idx)  # trunk only
-        gain = init.calculate_gain('relu')
-        for head, v0 in [(self.head1, head1_v0),
-                         (self.head2, head2_q0)]:
-            init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
-            if head.bias is not None: init.zeros_(head.bias)
-            
-    def forward(self, x):
-        for l, layer in enumerate(self.layers[:self.head_idx]):
-            x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
-        self._trunk_out = x
-        return self.head1(x), self.head2(x)
-
-# ===============================================================================================
-class nnDuelModel(nnSplitModel):
-    def __init__(self, out_dim, **kw):
-        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
-
-    def forward(self, x):
-        V, A = super().forward(x)
-        return V + (A - A.mean(dim=1, keepdim=True))
-
-# ===============================================================================================
 class nnACSharedModel(nnSplitModel):
     def __init__(self, out_dim, αv, αq, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
+        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
         self.optim = optim.Adam([
-            {'params': list(self.layers[:self.head_idx].parameters()) +
-                       list(self.head1.parameters()), 'lr': αv},  # trunk + V head
-            {'params': list(self.head2.parameters()),  'lr': αq}   # π head only
+            {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
+            {'params': list(self.head2.parameters()),  'lr': αq}
         ])
-
     def forward(self, x):
         V, logits = super().forward(x)
         return V, F.softmax(logits, dim=-1)
-
     def logπ(self, s, a):
         V, π = self(s)
         return V, torch.log(π[range(len(a)), a]), π
-
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
-
     def fit(self, s, a, Gt):
         self.train()
         self.optim.zero_grad()
-        V, logπ, π = self.logπ(s, a)
-        V     = V.squeeze(-1)
-        A     = (Gt - V).detach()
-        
-        # print(V.shape)
-        # print(Gt.shape)
-        
+        V, log_prob, π = self.logπ(s, a)                              # 🟢 fix: renamed logπ -> log_prob to avoid shadowing method
+        V  = V.squeeze(-1)                                             # (B,)
+        Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt                    # 🟡 fix: ensure (B,) to prevent silent (B,B) broadcast in mse_loss
+        A  = (Gt - V).detach()
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
-        actor_loss    = -(logπ * A).mean()
+        actor_loss    = -(log_prob * A).mean()
         entropy_bonus = self.entropy(π)
         loss = actor_loss + critic_loss - 0.01 * entropy_bonus
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
         self.optim.step()
         return loss.item()
-
     def predict(self, s, state_dim, deterministic=False):
         if not isinstance(s, torch.Tensor):
             s = torch.tensor(s, dtype=torch.float32)
@@ -243,39 +199,7 @@ class nnACSharedModel(nnSplitModel):
         self.eval()
         with torch.no_grad():
             V, π = self(s)
+            V = V.squeeze(-1)                                          # 🟡 fix: (B,) in batch path, scalar after [0] in single path
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
             if s_batch: return V, π
             return V[0], π[0]
-
-# ===============================================================================================
-class nnACcSharedModel(nnACSharedModel):
-    def __init__(self, out_dim, **kw):
-        super().__init__(out_dim=out_dim, **kw)
-        feat_in     = self.head2.in_features
-        self.μ_head = self.head2
-        self.σ_head = nn.Linear(feat_in, out_dim, bias=self.final_bias)
-
-    def forward(self, x):
-        V, μ = nnSplitModel.forward(self, x)
-        σ    = F.softplus(self.σ_head(self._trunk_out)) + 1e-6
-        return V, μ, σ
-
-    def logπ(self, s, a):
-        V, μ, σ = self(s)
-        dist = Normal(μ, σ)
-        return V, dist.log_prob(a).sum(dim=-1), dist
-
-    def entropy(self, dist):
-        return dist.entropy().mean()
-
-    def predict(self, s, state_dim, deterministic=False):
-        if not isinstance(s, torch.Tensor):
-            s = torch.tensor(s, dtype=torch.float32)
-        s_batch = s.ndim > len(state_dim)
-        if not s_batch: s = s.unsqueeze(0)
-        self.eval()
-        with torch.no_grad():
-            V, μ, σ = self(s)
-            a = μ if deterministic else Normal(μ, σ).sample()
-            if s_batch: return V, a
-            return V[0], a[0]
