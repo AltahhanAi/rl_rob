@@ -220,7 +220,7 @@ class nnACSharedModel(nnSplitModel):
         self.train()
         self.optim.zero_grad()
         V, logπ, π = self.logπ(s, a)
-        # V     = V.squeeze(-1)
+        V     = V.squeeze(-1)
         A     = (Gt - V).detach()
         
         print(V.shape)
