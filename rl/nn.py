@@ -30,7 +30,7 @@ from math import prod
 from torch.distributions import Normal
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, net_str='', final_bias=True, **kw):
+    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', final_bias=True, **kw):
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
@@ -162,7 +162,7 @@ class nnModel(nn.Module):
 # ==================== Split head models for Dueling and Actor-Critic ===========================
 
 class nnSplitModel(nnModel):
-    def __init__(self, head1_dim, head2_dim, **kw):
+    def __init__(self, head1_dim, head2_dim,  τ=1.0, **kw):
         super().__init__(out_dim=head1_dim, **kw)
         feat_in    = self.layers[-1].in_features
         self.layers = self.layers[:-1]                         # remove final layer
@@ -197,7 +197,7 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv, αq, τ=.25, **kw):
+    def __init__(self, out_dim, αv, αq,  τ=1.0, **kw):
         super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
         self.optim = optim.Adam([
