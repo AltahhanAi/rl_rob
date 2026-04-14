@@ -60,18 +60,31 @@ class nnMRP(MRP):
         self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(head_v0=self.v0)
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
-
+    
     def create_model(self, net_str, model_class):
         self.state_dim  = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
         model = model_class(
             inp_dim=self.state_dim, trunk=self.trunk,
             nF=self.nF, out_dim=self.action_dim,
-            α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None), 
+            α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None),
+            τ=getattr(self, 'τ', 1.0),                    # pass τ, default to 1.0 if not set
             net_str=net_str, final_bias=self.final_bias
         )
         if self.model_summary: model.print_model_summary(net_str)
         return model
+        
+    # def create_model(self, net_str, model_class):
+    #     self.state_dim  = self.env.reset().shape
+    #     self.action_dim = 1 if net_str == 'V' else self.env.nA
+    #     model = model_class(
+    #         inp_dim=self.state_dim, trunk=self.trunk,
+    #         nF=self.nF, out_dim=self.action_dim,
+    #         α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None), 
+    #         net_str=net_str, final_bias=self.final_bias
+    #     )
+    #     if self.model_summary: model.print_model_summary(net_str)
+    #     return model
 
     # def V(self, s=None):
     #     result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
@@ -174,6 +187,7 @@ class nnPG(PG(nnMDP)):
         # nnAC_SharedModel returns two part the V for the critic and Mu and sigma for the Actor
         # no need to initilaise the w independently unless we do nto want to share the same 
         # trunk between the actor and the critic
+        
         self.wϴ = self.create_model(net_str='wϴ',  model_class=nnACSharedModel) # discrete actions
         self.policy = self.softmax
 
