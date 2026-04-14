@@ -60,18 +60,36 @@ class nnModel(nn.Module):
             self.layers.append(nn.Flatten())
             feat_in = self.flatten_dim(inp_dim)
         return feat_in
-    
+
+    def forward(self, x):
+        for l, layer in enumerate(self.layers[:-1]):
+            x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+        return self.layers[-1](x)
+
+    # def forward(self, x):
+    #     for l, layer in enumerate(self.layers[:-1]):
+    #         x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+    #     out = self.layers[-1](x)
+    #     return out.squeeze(-1) if out.shape[-1] == 1 else out
+        
     def flatten_dim(self, inp_dim):
         with torch.no_grad():
             x = torch.zeros(1, *inp_dim)
             for layer in self.layers[:self.flat_idx]: x = layer(x)
             return x.view(1, -1).shape[1]
-        
-    def forward(self, x):
-        for l, layer in enumerate(self.layers[:-1]):
-            x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
-        return self.layers[-1](x)    
 
+    # def fit(self, vals, targets, exact=True):
+    #     self.train()
+    #     self.optim.zero_grad()
+    #     vals    = vals.squeeze(-1)    # to avoid having to call unsqueeze(1) elsewhere
+    #     targets = targets.squeeze(-1) # to avoid having to call unsqueeze(1) elsewhere
+    #     if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
+    #     else:     loss = .5 * F.mse_loss(vals, targets)
+    #     loss.backward()
+    #     clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
+    #     self.optim.step()
+    #     return loss.item()
+        
     def fit(self, vals, targets, exact=True):
         self.train()
         self.optim.zero_grad()
@@ -90,6 +108,7 @@ class nnModel(nn.Module):
         self.eval()
         with torch.no_grad():
             return self(s) if s_batch else self(s)[0]
+
 
     def init_weights(self, head_v0=None, skip_from=None):
         gain = init.calculate_gain('relu')
@@ -222,10 +241,6 @@ class nnACSharedModel(nnSplitModel):
         V, logπ, π = self.logπ(s, a)
         # V     = V.squeeze(-1)
         A     = (Gt - V).detach()
-        
-        # print(V.shape)
-        # print(Gt.shape)
-        
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
         actor_loss    = -(logπ * A).mean()
         entropy_bonus = self.entropy(π)

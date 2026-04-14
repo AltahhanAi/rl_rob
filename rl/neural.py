@@ -297,7 +297,7 @@ class nnTD(nnMRP):
         self.w.fit(Vs, (1-done.float())*self.γ * Vn  + rn)     # backprop handels multi-layer learning
 
 # ===============================================================================================
-class TDN(nnMRP):
+class TDN_(nnMRP):# without a target
     # ----------------------------- 🌖 online learning ----------------------  
     def online(self, *args):
         if len(self.buffer) < self.nbatch: return  # wait until we have nbatch entries in the buffer
@@ -309,30 +309,122 @@ class TDN(nnMRP):
         self.w.fit(Vs, self.γ * Vn + rn)
         
 # ===============================================================================================
-class TDN_with_target(nnMRP):
+class TDN(nnMRP):
+    # ----------------------------- 🌖 online learning ----------------------  
     def online(self, *args):
-        if len(self.buffer) < self.nbatch: return
-        (s, a, rn, sn, dones), inds = self.batch()
+        if len(self.buffer) < self.nbatch: return  # wait until we have nbatch entries in the buffer
+        (s, _, rn, sn, dones), _ = self.batch() # note that we are taking a batch now instead of one buffer item
+        
         Vs = self.w(s)
         Vn = self.Vn(sn) if self.create_wn and self.ep > 2 else self.w(sn).detach().squeeze(-1)
-        Vn = Vn * (1 - dones.float())
-        targets = self.γ * Vn + rn
-        loss = self.w.fit(Vs, targets)
+        Vn[dones] = 0 # equivalent to (1 - dones) but works for a batch
+ 
+        self.w.fit(Vs, self.γ * Vn + rn)
         if self.t_Vn and self.t_ % self.t_Vn == 0 and self.create_wn:
             self.wn.set_weights(self.w, 'V', self.t_)
 # ===============================================================================================
-class DQN(nnMDP):
+
+class nnMCC(nnMDP):
+    def init(self):
+        self.nbuffer = self.max_t                # all nnMRP and subclasses stores 
+        
+    def step0(self):
+        self.buffer.clear()                      # clear the buffer after each episode
+        
+    # ---------------------------- 🌘 offline, MC learning: end-of-episode learning-----------------------    
+    def offline(self):          
+        Gt = 0
+        for t in range(self.t, -1, -1):
+            s, a, rn, sn, done = self.trajectory(t=t)
+            
+            Gt = self.γ*Gt + rn
+            Qs  = self.W(s)
+            
+            target = Qs.clone().detach() 
+            target[:,a] = Gt
+            
+            self.W.fit(Qs, target)
+# ===============================================================================================
+class nnSarsa(nnMDP):
+
+    def init(self):
+        self.step = self.step_an # for Sarsa, we want to decide the next action in time step t
+
+    # ----------------------------------------🌖 online learning ----------------------------------------
+    def online(self, s, rn,sn, done, a, an):
+        s, a, rn, sn, done = self.trajectory(-1) # obtain the latest trajectory
+        
+        Qs  = self.W(s)
+        Qn  = self.W(sn).detach() 
+
+        target = Qs.clone().detach() 
+        target[:,a] = (1-done.float())*self.γ * Qn[:,an] + rn
+
+        self.W.fit(Qs, target)
+# ===============================================================================================
+class nnQlearn(nnMDP):
+    # ---------------------------- 🌖 online control learning ----------------------------
+    def online(self, *args):
+        s, a, rn, sn, done = self.trajectory(-1) # obtain the latest trajectory
+        
+        Qs  = self.W(s)
+        Qn  = self.W(sn).detach() 
+
+        target = Qs.clone().detach() 
+        target[:,a] = (1-done.float())*self.γ * Qn.max(1).values + rn
+
+        self.W.fit(Qs, target)
+# ===============================================================================================
+class DQN_(nnMDP): # there is no target network for this one
+    # ----------------------------- 🌖 online learning ---------------------- 
     def online(self, *args):
         if len(self.buffer) < self.nbatch: return
         (s, a, rn, sn, dones), inds = self.batch()
+    
+        Qs  = self.W(s)
+        Qn  = self.W(sn).detach() 
+        Qn[dones] = 0
+
+        # Copy Qs so when we fit identical Qs, they cancel out, leaving the max ones that we want to update
+        targets = Qs.clone().detach() 
+        targets[inds, a] = self.γ * Qn.max(1).values + rn.squeeze(1)
+        
+        self.W.fit(Qs, targets)
+# ===============================================================================================
+class DQN(nnMDP):
+    # ----------------------------- 🌖 online learning ---------------------- 
+    def online(self, *args):
+        if len(self.buffer) < self.nbatch: return
+        (s, a, rn, sn, dones), inds = self.batch()
+        
         Qs  = self.W(s)
         Qn  = self.Wn(sn).detach() if self.create_Wn and self.ep > 2 else self.W(sn).detach()
         Qn[dones] = 0
-        targets = Qs.clone().detach()
-        targets[inds, a] = self.γ * Qn.max(1).values + rn
-        loss = self.W.fit(Qs, targets)
+        
+        targets = Qs.clone().detach() 
+        targets[inds, a] = self.γ * Qn.max(1).values + rn.squeeze(1)
+        
+        self.W.fit(Qs, targets)
+        
+        # copy the Q network weights W to the target Qn network weights Wn every t_Qn steps
         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_Wn:
             self.Wn.set_weights(self.W, 'Q', self.t_)
+
+
+
+# class DQN(nnMDP):
+#     # ----------------------------- 🌖 online learning ---------------------- 
+#     def online(self, *args):
+#         if len(self.buffer) < self.nbatch: return
+#         (s, a, rn, sn, dones), inds = self.batch()
+#         Qs  = self.W(s)
+#         Qn  = self.Wn(sn).detach() if self.create_Wn and self.ep > 2 else self.W(sn).detach()
+#         Qn[dones] = 0
+#         targets = Qs.clone().detach()
+#         targets[inds, a] = self.γ * Qn.max(1).values + rn
+#         loss = self.W.fit(Qs, targets)
+#         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_Wn:
+#             self.Wn.set_weights(self.W, 'Q', self.t_)
 
 # ===============================================================================================
 class DDQN(DQN):
@@ -353,6 +445,9 @@ class DDQN(DQN):
 class DuelDQN(DQN):
     def __init__(self, model_class=nnDuelModel, **kw):
         super().__init__(model_class=model_class, **kw)
+
+
+
 
 # ===============================================================================================
 def AC(base=nnPG, label='AC'):
