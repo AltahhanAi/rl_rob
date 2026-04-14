@@ -198,15 +198,20 @@ class nnDuelModel(nnSplitModel):
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
     def __init__(self, out_dim, αv, αq, **kw):
-        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
+        super().__init__(τ=.25, head1_dim=1, head2_dim=out_dim, **kw)
         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
         self.optim = optim.Adam([
             {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
             {'params': list(self.head2.parameters()),  'lr': αq}
         ])
+        self.τ = τ  
+    # def forward(self, x):
+    #     V, logits = super().forward(x)
+    #     return V, F.softmax(logits, dim=-1)
     def forward(self, x):
         V, logits = super().forward(x)
-        return V, F.softmax(logits, dim=-1)
+        return V, F.softmax(logits / self.τ, dim=-1)    
+        
     def logπ(self, s, a):
         V, π = self(s)
         return V, torch.log(π[range(len(a)), a]), π
