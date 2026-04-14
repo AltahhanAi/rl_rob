@@ -110,15 +110,15 @@ class nnModel(nn.Module):
             return self(s) if s_batch else self(s)[0]
 
 
-    def init_weights(self, final_v0=None, skip_from=None):
+    def init_weights(self, head_v0=None, skip_from=None):
         gain = init.calculate_gain('relu')
         for i, layer in enumerate(self.layers):
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
-                is_final = (i == len(self.layers) - 1)
+                is_head = (i == len(self.layers) - 1)
                 if skip_from is not None and i >= skip_from:
                     continue
-                if final_v0 is not None and is_final:
-                    init.constant_(layer.weight, final_v0)
+                if head_v0 is not None and is_head:
+                    init.constant_(layer.weight, head_v0)
                 else:
                     init.xavier_normal_(layer.weight, gain=gain)
                 if layer.bias is not None:
@@ -191,11 +191,11 @@ class nnSplitModel(nnModel):
         self.layers.append(self.head2)                         # register for summary
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
-    def init_weights(self, final_v0=None, head2_v0=None):
+    def init_weights(self, head1_v0=None, head2_q0=None):
         super().init_weights(skip_from=self.head_idx)  # trunk only
         gain = init.calculate_gain('relu')
-        for head, v0 in [(self.head1, final_v0),
-                         (self.head2, head2_v0)]:
+        for head, v0 in [(self.head1, head1_v0),
+                         (self.head2, head2_q0)]:
             init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
             if head.bias is not None: init.zeros_(head.bias)
             

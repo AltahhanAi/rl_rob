@@ -156,7 +156,7 @@ class nnMDP(MDP(nnMRP)):
         torch.manual_seed(self.seed)
         if self.create_w:
             self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(final_v0=self.v0)
-        self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(final_q0=self.q0)
+        self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(final_v0=self.q0)
         self.Wn.eval() if self.create_Wn else None
         self.V_ = self.V
         self.Q_ = self.Q
@@ -179,7 +179,7 @@ class nnPG(PG(nnMDP)):
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(final_v0=self.v0, final_q0=self.q0)
+        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(head1_v0=self.v0, head2_q0=self.q0)
         
         self.V_ = self.V
         # self.Q_ = self.Q
@@ -216,7 +216,7 @@ class nnPGc(PG(nnMDP)):
 
     def init_(self):
         torch.manual_seed(self.seed)
-        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(final_v0=self.v0, final_q0=self.q0)
+        self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(head1_v0=self.v0, head2_q0=self.q0)
         self.V_ = self.V
         # self.Q_ = self.Q
 
