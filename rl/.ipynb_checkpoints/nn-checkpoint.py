@@ -126,7 +126,9 @@ class nnModel(nn.Module):
     # --------------------------------------------------------------------------------------
     
     def init_weights(self, head_v0=None, skip_from=None):
+        
         gain = init.calculate_gain('relu')
+        
         for i, layer in enumerate(self.layers):
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
                 is_head = (i == len(self.layers) - 1)
@@ -138,6 +140,7 @@ class nnModel(nn.Module):
                     init.xavier_normal_(layer.weight, gain=gain)
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
+        
         if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
         else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
 
@@ -213,7 +216,17 @@ class nnSplitModel(nnModel):
                          (self.head2, head2_q0)]:
             init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
             if head.bias is not None: init.zeros_(head.bias)
-            
+        
+        # restore the param-group optimizer that super() just overwrote
+        αv = getattr(self, 'αv', None)
+        αq = getattr(self, 'αq', None)
+        if αv is not None and αq is not None:
+        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+        self.optim = optim.Adam([
+            {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
+            {'params': list(self.head2.parameters()),                 'lr': αq}
+        ])
+        
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
@@ -294,6 +307,20 @@ class nnACSharedModel(nnSplitModel):
         self.optim.step()
         return loss.item()
     
+    
+    def predict(self, s, state_dim, deterministic=False):
+        if not isinstance(s, torch.Tensor):
+            s = torch.tensor(s, dtype=torch.float32)
+        s_batch = s.ndim > len(state_dim)
+        if not s_batch: s = s.unsqueeze(0)
+        self.eval()
+        with torch.no_grad():
+            V, π = self(s)
+            V = V.squeeze(-1)
+            a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
+ 
+            return V, π
+
     # def fit(self, s, a, Gt):
     #     self.train()
     #     self.optim.zero_grad()
@@ -309,19 +336,6 @@ class nnACSharedModel(nnSplitModel):
     #     clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
     #     self.optim.step()
     #     return loss.item()
-    
-    def predict(self, s, state_dim, deterministic=False):
-        if not isinstance(s, torch.Tensor):
-            s = torch.tensor(s, dtype=torch.float32)
-        s_batch = s.ndim > len(state_dim)
-        if not s_batch: s = s.unsqueeze(0)
-        self.eval()
-        with torch.no_grad():
-            V, π = self(s)
-            V = V.squeeze(-1)                                          # 🟡 fix: (B,) in batch path, scalar after [0] in single path
-            a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
-            if s_batch: return V, π
-            return V, π
 # ===============================================================================================
 class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, **kw):
