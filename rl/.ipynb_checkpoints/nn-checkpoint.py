@@ -30,7 +30,8 @@ from math import prod
 from torch.distributions import Normal
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', final_bias=True, **kw):
+    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', 
+                 final_bias=True,clipCNN=True, **kw):
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
@@ -78,7 +79,7 @@ class nnModel(nn.Module):
         if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
         else:     loss = .5 * F.mse_loss(vals, targets)
         loss.backward()
-        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
+        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
         self.optim.step()
         return loss.item()
 
@@ -231,7 +232,7 @@ class nnACSharedModel(nnSplitModel):
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         loss = actor_loss + critic_loss - 0.01 * entropy_bonus
         loss.backward()
-        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
+        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
         self.optim.step()
         return loss.item()
 

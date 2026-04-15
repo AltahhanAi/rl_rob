@@ -26,6 +26,7 @@ class nnMRP(MRP):
                  action_dtype=torch.int64,
                  model_summary=True,
                  model_class=nnModel, # which type of neural network model from nn.py to create
+                 clipCNN=True,
                  **kw):
         self.model_summary = model_summary
         print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------') if model_summary else None
@@ -54,6 +55,7 @@ class nnMRP(MRP):
         self.t_ = 0
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
+        self.clipCNN = clipCNN
 
     def init_(self):
         torch.manual_seed(self.seed)
