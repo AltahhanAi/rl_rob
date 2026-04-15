@@ -31,12 +31,13 @@ from torch.distributions import Normal
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', 
-                 final_bias=True,clipCNN=True, **kw):
+                 final_bias=True, clipCNN=True, **kw):
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
         self.trunk = trunk
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
+        self.clipCNN = clipCNN
         feat_in = inp_dim[0]
         feat_in = self.append_trunk(feat_in, inp_dim)
         self.inp_dim = inp_dim
