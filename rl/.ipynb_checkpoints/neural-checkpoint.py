@@ -71,7 +71,7 @@ class nnMRP(MRP):
             nF=self.nF, out_dim=self.action_dim,
             α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None),
             τ=getattr(self, 'τ', 1.0),                    # pass τ, default to 1.0 if not set
-            net_str=net_str, final_bias=self.final_bias
+            net_str=net_str, final_bias=self.final_bias,
             clipCNN=self.clipCNN,  
         )
         if self.model_summary: model.print_model_summary(net_str)
