@@ -450,7 +450,7 @@ def AC(_PG_=vPG):
             δ = (1- done)*γ*self.V(sn) + rn - self.V(s)    # TD error is based on the critic estimate
             self.w  += αv*δ*ΔV(s)                 # critic
             self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ       # actor  
-            self.γt *= γ
+            self.γt *= 1#γ
     
     return vActor_Critic
     
