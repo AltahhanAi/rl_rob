@@ -235,7 +235,7 @@ class nnACSharedModel(nnSplitModel):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
         self.β_entropy = β_entropy
-        αt = αq #(αv + αq) / 2                                      # trunk lr: geometric mean of both signals
+        αt = (αv + αq) / 2                                      # trunk lr: geometric mean of both signals
         self.optim = optim.Adam([
             {'params': trunk_params,                   'lr': αt},  # trunk: balanced between actor and critic
             {'params': list(self.head1.parameters()), 'lr': αv},  # critic head: faster
@@ -279,7 +279,17 @@ class nnACSharedModel(nnSplitModel):
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
         loss.backward()
-        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
+        
+        # clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
+        if self.CNN and self.clipCNN:
+            # clip actor and critic heads independently so critic's large gradients
+            # don't crowd out the actor's smaller ones
+            trunk_params  = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+            clip_grad_norm_(trunk_params                    , max_norm=1.0)  # trunk
+            clip_grad_norm_(self.head1.parameters()         , max_norm=0.5)  # critic head: tighter, grads are large
+            clip_grad_norm_(self.head2.parameters()         , max_norm=1.0)  # actor head:  full budget
+
+        
         self.optim.step()
         return loss.item()
 

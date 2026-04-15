@@ -112,7 +112,7 @@ class nnMRP(MRP):
         if not self.create_wn: return None
         return np.squeeze(self.wn.predict(sn, self.state_dim).detach().numpy())
 
-    # must not use the buffer directly in learning as it will give unsuitable shaped tensor
+    # must not use the buffer directly in learning, as it will give unsuitable shaped tensor
     def allocate(self):
         self.buffer = deque(maxlen=self.nbuffer)
 
@@ -135,7 +135,7 @@ class nnMRP(MRP):
     # def type_convert(self, s,rn,sn, a,an, done ):
     #     return self.batch(t=-1)[0]
     
-    # aliase for batch, sicne batch gurantee that the items returned havee the right shape
+    # alias for batch, since batch guarantees that the items returned have the right shape
     def trajectory(self, t=-1):
         return self.batch(t=t)[0]
     
