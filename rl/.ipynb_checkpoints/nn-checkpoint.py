@@ -328,8 +328,7 @@ class nnACSharedModel(nnSplitModel):
 
         self.optim.step()
         return loss.item()
-    
-    
+
     def predict(self, s, state_dim, deterministic=False):
         if not isinstance(s, torch.Tensor):
             s = torch.tensor(s, dtype=torch.float32)
@@ -340,8 +339,22 @@ class nnACSharedModel(nnSplitModel):
             V, π = self(s)
             V = V.squeeze(-1)
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
+            if s_batch: return V, π
+            return V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
+            
+    
+    # def predict(self, s, state_dim, deterministic=False):
+    #     if not isinstance(s, torch.Tensor):
+    #         s = torch.tensor(s, dtype=torch.float32)
+    #     s_batch = s.ndim > len(state_dim)
+    #     if not s_batch: s = s.unsqueeze(0)
+    #     self.eval()
+    #     with torch.no_grad():
+    #         V, π = self(s)
+    #         V = V.squeeze(-1)
+    #         a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
  
-            return V, π
+    #         return V, π
 
     # def fit(self, s, a, Gt):
     #     self.train()
@@ -415,6 +428,5 @@ class nnACcSharedModel(nnACSharedModel):
         self.eval()
         with torch.no_grad():
             V, μ, σ = self(s)
-            a = μ if deterministic else Normal(μ, σ).sample()
-            if s_batch: return V, a
-            return V[0], a[0]
+            if s_batch: return V, μ, σ
+            return V[0], μ[0], σ[0]
