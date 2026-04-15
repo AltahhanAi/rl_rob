@@ -69,14 +69,16 @@ class nnMRP(MRP):
     def create_model(self, net_str, model_class):
         self.state_dim  = self.env.reset().shape
         self.action_dim = 1 if net_str == 'V' else self.env.nA
+        
         model = model_class(
             inp_dim=self.state_dim, trunk=self.trunk,
             nF=self.nF, out_dim=self.action_dim,
             α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None),
-            τ=getattr(self, 'τ', 1.0),                    # pass τ, default to 1.0 if not set
-            β_entropy=getattr(self, 'β_entropy', 0.0),
+            αt=getattr(self, 'αt', None),            # ← add this
+            τ=getattr(self, 'τ', 1.0),
+            β_entropy=getattr(self, 'β_entropy', 0.01),
             net_str=net_str, final_bias=self.final_bias,
-            clipCNN=self.clipCNN,  
+            clipCNN=self.clipCNN,
         )
         if self.model_summary: model.print_model_summary(net_str)
         return model

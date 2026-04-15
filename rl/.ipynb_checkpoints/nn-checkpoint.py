@@ -209,23 +209,41 @@ class nnSplitModel(nnModel):
         self.layers.append(self.head2)                         # register for summary
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
+    # def init_weights(self, head1_v0=None, head2_q0=None):
+    #     super().init_weights(skip_from=self.head_idx)  # trunk only
+    #     gain = init.calculate_gain('relu')
+    #     for head, v0 in [(self.head1, head1_v0),
+    #                      (self.head2, head2_q0)]:
+    #         init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
+    #         if head.bias is not None: init.zeros_(head.bias)
+        
+    #     # restore the param-group optimizer that super() just overwrote
+    #     αv = getattr(self, 'αv', None)
+    #     αq = getattr(self, 'αq', None)
+    #     if αv is not None and αq is not None:
+    #         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+    #         self.optim = optim.Adam([
+    #             {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
+    #             {'params': list(self.head2.parameters()),                 'lr': αq}
+    #         ])
+
     def init_weights(self, head1_v0=None, head2_q0=None):
-        super().init_weights(skip_from=self.head_idx)  # trunk only
+        super().init_weights(skip_from=self.head_idx)
         gain = init.calculate_gain('relu')
-        for head, v0 in [(self.head1, head1_v0),
-                         (self.head2, head2_q0)]:
+        for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
             init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
             if head.bias is not None: init.zeros_(head.bias)
-        
-        # restore the param-group optimizer that super() just overwrote
         αv = getattr(self, 'αv', None)
         αq = getattr(self, 'αq', None)
+        αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
         if αv is not None and αq is not None:
             trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-            self.optim = optim.Adam([
-                {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
-                {'params': list(self.head2.parameters()),                 'lr': αq}
-            ])
+            groups = [
+                {'params': trunk_params,                              'lr': αt},  # trunk
+                {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
+                {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
+            ]
+            self.optim = optim.Adam(groups) if self.CNN else optim.SGD(groups)
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
@@ -244,18 +262,14 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv, αq, τ=1.0, β_entropy=.01, **kw):
+    def __init__(self, out_dim, αv, αq, αt=None, τ=1.0, β_entropy=0.01, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
-        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-        self.β_entropy = β_entropy
-        αt = (αv + αq) / 2                                      # trunk lr: geometric mean of both signals
-        self.optim = optim.Adam([
-            {'params': trunk_params,                   'lr': αt},  # trunk: balanced between actor and critic
-            {'params': list(self.head1.parameters()), 'lr': αv},  # critic head: faster
-            {'params': list(self.head2.parameters()), 'lr': αq},  # actor head: slower
-        ])
-        self.τ = τ
         
+        self.β_entropy = β_entropy
+        self.αv = αv
+        self.αq = αq
+        self.αt = αt if αt is not None else αv    # trunk lr defaults to critic lr
+        self.τ  = τ        
         
     # def __init__(self, out_dim, αv, αq,  τ=1.0, β_entropy=0.01, **kw):
     #     super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
@@ -281,7 +295,7 @@ class nnACSharedModel(nnSplitModel):
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
     
-    def fit(self, s, a, Gt, exact=True):
+    def fit(self, s, a, Gt, γt=1.0, exact=True):
         self.train()
         self.optim.zero_grad()
         V, log_prob, π = self.logπ(s, a)
@@ -294,9 +308,9 @@ class nnACSharedModel(nnSplitModel):
         if exact: critic_loss = 0.5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
         else:     critic_loss = 0.5 * F.mse_loss(V, Gt)
             
-        actor_loss    = -(log_prob * A).mean() * self.τ                    # τ scales the policy gradient
+        actor_loss    = -(log_prob * A).mean() * self.τ *γt                    # τ scales the policy gradient
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
-        loss = actor_loss + critic_loss #- self.β_entropy * entropy_bonus
+        loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
         loss.backward()
         
         # clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
