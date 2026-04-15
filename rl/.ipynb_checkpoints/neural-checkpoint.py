@@ -234,7 +234,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        self.wϴ = self.create_model(net_str='wϴ',  model_class=nnACcSharedModel) # continuous actions
+        self.wϴ = self.create_model(net_str='wϴ',  mmodel_class=ac_model_class) # continuous actions
         self.policy = self.Gaussian
 
     def init_(self):
@@ -517,35 +517,141 @@ class nnSarsaλ(nnMDP):
         self.Z *= self.γ * self.λ            # z ← γλz
         self.Z += self.W.Δ(Qs[:, a])         # z ← z + ∇Q(s,a)
         self.W.update(δ, self.Z)             # θ ← θ + α·δ·z
-
-class nnActor_Critic(nnPG):
-    # -----------------------🌖 online learning -------------------
-    def online(self, *args):
-        s, a, rn, sn, done = self.trajectory(-1)   # one step only
-        Vn, *_ = self.wϴ(sn)
-        Vn = Vn.squeeze(1).detach()
-        Vn[done] = 0
-        Gt = rn + self.γ * Vn                      # one-step return
-        a  = a.to(torch.int64)
-        self.wϴ.fit(s, a, Gt)
         
 # ===============================================================================================
-# def AC(base=nnPG, label='AC'):
-#     class nnAC_(base):
-#         def online(self, *args):
-#             if len(self.buffer) < self.nbatch: return
-#             (s, a, rn, sn, dones), inds = self.batch()
-#             Vn, *_ = self.wϴ(sn); Vn = Vn.squeeze(1).detach()
-#             Vn[dones] = 0
-#             Gt = rn + self.γ * Vn
-#             a  = torch.tensor(np.array(a.tolist()), dtype=torch.float32 if label == 'continuous' else torch.int64)
-#             loss = self.wϴ.fit(s, a, Gt)
-#     nnAC_.__name__ = f'AC_{label}'
-#     return nnAC_
+class nnREINFORCE(nnPG):
 
-# # ===============================================================================================
-# nnAC  = AC(nnPG,  'discrete')
-# nnACc = AC(nnPGc, 'continuous')
+    def init(self):
+        self.nbuffer = self.max_t
+
+    def step0(self):
+        self.buffer.clear()
+
+    # ---------------------------- 🌘 offline, MC policy learning: end-of-episode learning ------
+    def offline(self):
+        Gt = 0
+        γt = self.γ ** self.t
+
+        for t in range(self.t, -1, -1):
+            s, a, rn, sn, done = self.trajectory(t=t)
+
+            Gt = self.γ * Gt + rn.squeeze(-1)
+            self.wϴ.fit(s, a, Gt, γt=γt)
+
+            γt /= self.γ if self.γ != 0 else 1
+# ============================= needs debugging========================================
+'''
+collect the Gt and samples and then batch updat them
+'''
+class nnREINFORCE__(nnPG):
+    def init(self):
+        self.nbuffer = self.max_t
+
+    def step0(self):
+        self.buffer.clear()
+
+    def offline(self):
+        Gt  = 0
+        γt  = self.γ ** self.t
+        Gts = []
+        γts = []
+        for t in range(self.t, -1, -1):
+            s, a, rn, _, _ = self.trajectory(t=t)
+            Gt  = self.γ * Gt + rn.squeeze(-1)
+            Gts.insert(0, Gt.clone().detach())
+            γts.insert(0, γt)
+            γt /= self.γ if self.γ != 0 else 1
+
+        # now update in mini-batches of nbatch steps
+        T   = self.t + 1
+        idx = torch.randperm(T)
+        s_all  = torch.stack([self.trajectory(t=t)[0].squeeze(0) for t in range(T)])
+        a_all  = torch.stack([self.trajectory(t=t)[1].squeeze(0) for t in range(T)])
+        Gt_all = torch.stack(Gts)
+        γt_all = torch.tensor(γts)
+        for start in range(0, T, self.nbatch):
+            mb = idx[start:start + self.nbatch]
+            self.wϴ.fit(s_all[mb], a_all[mb], Gt_all[mb], γt=γt_all[mb])
+# ===============================================================================================
+    
+class nnActor_Critic(nnPG):
+    
+    def step0(self):
+        self.γt = 1    
+    # ---------------------------- 🌖 online control learning ----------------------------
+    def online(self, *args):
+        s, a, rn, sn, done = self.trajectory(-1)
+        
+        Vn, *_ = self.wϴ(sn)
+        Vn = Vn.squeeze(-1).detach() 
+        Vn[done] = 0
+        
+        Gt = self.γ * Vn + rn.squeeze(-1) 
+
+        self.wϴ.fit(s, a, Gt,  γt=self.γt)
+        self.γt *= self.γ  
+# ===============================================================================================
+class nnActor_Critic_nSteps(nnPG):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.rndbatch = False
+        self.endbatch = 0
+        self.nbuffer  = self.nbatch
+
+    def step0(self):
+        self.buffer.clear()
+        
+     # ---------------------------- 🌖 online control learning ----------------------------
+    def online(self, *args):
+        if len(self.buffer) < self.nbatch: return # ensures that collect enough rollout consecutive samples
+        self._update()
+    
+    # ---------------------------- 🌘 offline control learning ----------------------------
+    def offline(self):
+        if len(self.buffer) == 0: return # ensures to process remaining samples of the episode, important for sparse rewards
+        self._update()
+
+     # ---------------------------- 🌖 update for both online and remainder offline🌘 ------
+    def _update(self):
+        n = len(self.buffer)
+        (s, a, rn, sn, dones), _ = self.batch(nbatch=n, endbatch=0)
+        
+        Vn, *_ = self.wϴ(sn[-1].unsqueeze(0))
+        Vn     = Vn.squeeze().detach()
+        Gt     = Vn * (1 - dones[-1].float())
+        
+        returns = []
+        for r, d in zip(reversed(rn.squeeze(-1)), reversed(dones)):
+            Gt = r + self.γ * Gt * (1 - d.float())
+            returns.insert(0, Gt)
+        Gt = torch.stack(returns)
+        
+        self.wϴ.fit(s, a, Gt)
+        self.buffer.clear()        # discard rollout — on-policy, must not reuse
+        
+# ===============================================================================================
+def AC(base=nnPG):
+    class nnActor_Critic_(base):
+        def step0(self):
+            self.γt = 1
+
+        def online(self, *args):
+            s, a, rn, sn, done = self.trajectory(-1)
+
+            Vn, *_ = self.wϴ(sn)
+            Vn = Vn.squeeze(-1).detach()
+            Vn[done] = 0
+
+            Gt = self.γ * Vn + rn.squeeze(-1)
+            self.wϴ.fit(s, a, Gt, γt=self.γt)
+            self.γt *= self.γ
+
+    nnActor_Critic_.__name__ = f'nnActor_Critic'
+    return nnActor_Critic_
+
+# ===============================================================================================
+nnActor_Critic  = AC(nnPG)    # discrete  — softmax
+nnActor_c_Critic = AC(nnPGc)   # continuous — Gaussian
 
 # # ===============================================================================================
 # '''

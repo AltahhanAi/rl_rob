@@ -234,7 +234,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        self.wϴ = self.create_model(net_str='wϴ',  mmodel_class=ac_model_class) # continuous actions
+        self.wϴ = self.create_model(net_str='wϴ',  model_class=nnACcSharedModel) # continuous actions
         self.policy = self.Gaussian
 
     def init_(self):
@@ -630,28 +630,22 @@ class nnActor_Critic_nSteps(nnPG):
         self.buffer.clear()        # discard rollout — on-policy, must not reuse
         
 # ===============================================================================================
-def AC(base=nnPG):
-    class nnActor_Critic_(base):
-        def step0(self):
-            self.γt = 1
-
+def AC(base=nnPG, label='AC'):
+    class nnAC_(base):
         def online(self, *args):
-            s, a, rn, sn, done = self.trajectory(-1)
-
-            Vn, *_ = self.wϴ(sn)
-            Vn = Vn.squeeze(-1).detach()
-            Vn[done] = 0
-
-            Gt = self.γ * Vn + rn.squeeze(-1)
-            self.wϴ.fit(s, a, Gt, γt=self.γt)
-            self.γt *= self.γ
-
-    nnActor_Critic_.__name__ = f'nnActor_Critic'
-    return nnActor_Critic_
+            if len(self.buffer) < self.nbatch: return
+            (s, a, rn, sn, dones), inds = self.batch()
+            Vn, *_ = self.wϴ(sn); Vn = Vn.squeeze(1).detach()
+            Vn[dones] = 0
+            Gt = rn + self.γ * Vn
+            a  = torch.tensor(np.array(a.tolist()), dtype=torch.float32 if label == 'continuous' else torch.int64)
+            loss = self.wϴ.fit(s, a, Gt)
+    nnAC_.__name__ = f'AC_{label}'
+    return nnAC_
 
 # ===============================================================================================
-nnActor_Critic  = AC(nnPG)    # discrete  — softmax
-nnActor_c_Critic = AC(nnPGc)   # continuous — Gaussian
+nnAC  = AC(nnPG,  'discrete')
+nnACc = AC(nnPGc, 'continuous')
 
 # # ===============================================================================================
 # '''
