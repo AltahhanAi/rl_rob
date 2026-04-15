@@ -93,6 +93,24 @@ class nnModel(nn.Module):
         with torch.no_grad():
             return self(s) if s_batch else self(s)[0]
 
+    # -------The following functions are useful for eligibility traces update style:------
+    
+    # gradient of the parameters of the network
+    def Δ(self, output):
+        self.optim.zero_grad()
+        output.sum().backward()
+        return [p.grad.clone() for p in self.parameters() if p.grad is not None]
+    
+    # to update the traces
+    def update(self, δ, z):
+        with torch.no_grad():
+            for z_, p in zip(z, self.parameters()):
+                p.grad.copy_(-δ.item() * z_ / len(z_[0]))
+        if self.CNN and self.clipCNN: clip_grad_norm_(self.parameters(), max_norm=1.0)
+        self.optim.step()
+        self.optim.zero_grad()
+    # --------------------------------------------------------------------------------------
+    
     def init_weights(self, head_v0=None, skip_from=None):
         gain = init.calculate_gain('relu')
         for i, layer in enumerate(self.layers):
