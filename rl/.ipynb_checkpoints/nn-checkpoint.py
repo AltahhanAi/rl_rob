@@ -291,11 +291,8 @@ class nnACSharedModel(nnSplitModel):
             clip_grad_norm_(self.head1.parameters()         , max_norm=0.5)  # critic head: tighter, grads are large
             clip_grad_norm_(self.head2.parameters()         , max_norm=1.0)  # actor head:  full budget
 
-        
         self.optim.step()
         return loss.item()
-
-
     
     # def fit(self, s, a, Gt):
     #     self.train()

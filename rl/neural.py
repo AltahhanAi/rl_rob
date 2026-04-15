@@ -218,7 +218,7 @@ class nnPG(PG(nnMDP)):
     def softmax(self, s):
         _, π = self.wϴ.predict(s, self.state_dim)
         π = π.detach().numpy().flatten()              # flatten to 1-d
-        a = choices(range(self.env.nA), weights=π /π.sum(), k=1)[0]
+        a = choices(range(self.env.nA), weights=π, k=1)[0]
         return a
         # return np.random.choice(self.env.nA, p=π)
         
