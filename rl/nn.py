@@ -298,6 +298,7 @@ class nnACSharedModel(nnSplitModel):
     def fit(self, s, a, Gt, γt=1.0, exact=True):
         self.train()
         self.optim.zero_grad()
+        a  = a.to(torch.int64)
         V, log_prob, π = self.logπ(s, a)
         V  = V.squeeze(-1)
         Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
