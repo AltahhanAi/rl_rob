@@ -243,6 +243,7 @@ class nnACSharedModel(nnSplitModel):
         ])
         self.τ = τ
         
+        
     # def __init__(self, out_dim, αv, αq,  τ=1.0, β_entropy=0.01, **kw):
     #     super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
     #     trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
