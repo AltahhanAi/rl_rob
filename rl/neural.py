@@ -191,13 +191,12 @@ class nnMDP(MDP(nnMRP)):
 
 # ===============================================================================================
 class nnPG(PG(nnMDP)):
-    def __init__(self,  **kw):
-        super().__init__(create_w=False, create_W=False, create_Wn=False, **kw)
-        # nnAC_SharedModel returns two part the V for the critic and Mu and sigma for the Actor
-        # no need to initilaise the w independently unless we do nto want to share the same 
+    def __init__(self, ac_model_class=nnACSharedModel, **kw):
+        # nnAC_SharedModel returns two parts: the V for the critic and Mu and sigma for the Actor
+        # no need to initialise the w independently unless we don't want to share the same 
         # trunk between the actor and the critic
-        
-        self.wϴ = self.create_model(net_str='wϴ',  model_class=nnACSharedModel) # discrete actions
+        super().__init__(create_w=False, create_W=False, create_Wn=False, **kw)        
+        self.wϴ = self.create_model(net_str='wϴ',  model_class=ac_model_class) # discrete actions
         self.policy = self.softmax
 
     def init_(self):
