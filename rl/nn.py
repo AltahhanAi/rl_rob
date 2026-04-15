@@ -231,9 +231,10 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv, αq,  τ=1.0, **kw):
+    def __init__(self, out_dim, αv, αq,  τ=1.0, β_entropy=0.01, **kw):
         super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
+        self.β_entropy = β_entropy
         self.optim = optim.Adam([
             {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
             {'params': list(self.head2.parameters()),  'lr': αq}
@@ -263,7 +264,7 @@ class nnACSharedModel(nnSplitModel):
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
         actor_loss    = -(log_prob * A).mean() * self.τ                    # τ scales the policy gradient
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
-        loss = actor_loss + critic_loss - 0.01 * entropy_bonus
+        loss = actor_loss + critic_loss - self.β_entropy=0.01 * entropy_bonus
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
         self.optim.step()
