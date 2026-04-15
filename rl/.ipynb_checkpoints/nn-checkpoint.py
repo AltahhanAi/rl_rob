@@ -281,7 +281,7 @@ class nnACSharedModel(nnSplitModel):
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
     
-    def fit(self, s, a, Gt):
+    def fit(self, s, a, Gt, exact=True):
         self.train()
         self.optim.zero_grad()
         V, log_prob, π = self.logπ(s, a)
@@ -289,7 +289,11 @@ class nnACSharedModel(nnSplitModel):
         Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
         A  = (Gt - V).detach()
         
-        critic_loss   = 0.5 * F.mse_loss(V, Gt)
+        # critic_loss   = 0.5 * F.mse_loss(V, Gt)
+        
+        if exact: critic_loss = 0.5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
+        else:     critic_loss = 0.5 * F.mse_loss(V, Gt)
+            
         actor_loss    = -(log_prob * A).mean() * self.τ                    # τ scales the policy gradient
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
