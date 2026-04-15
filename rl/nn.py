@@ -296,9 +296,12 @@ class nnACSharedModel(nnSplitModel):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
     
     def fit(self, s, a, Gt, γt=1.0, exact=True):
+        a  = a.to(torch.int64)
+        Gt = Gt.detach()
+
         self.train()
         self.optim.zero_grad()
-        a  = a.to(torch.int64)
+        
         V, log_prob, π = self.logπ(s, a)
         V  = V.squeeze(-1)
         Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
@@ -309,7 +312,7 @@ class nnACSharedModel(nnSplitModel):
         if exact: critic_loss = 0.5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
         else:     critic_loss = 0.5 * F.mse_loss(V, Gt)
             
-        actor_loss    = -(log_prob * A).mean() * self.τ *γt                    # τ scales the policy gradient
+        actor_loss    = -(log_prob * A * γt).mean() * self.τ               # τ scales the policy gradient
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
         loss.backward()
@@ -361,6 +364,7 @@ class nnACEpochModel(nnACSharedModel):
     
     def fit(self, s, a, A, Gt, logπ_old, epochs, mb_size, ε_clip):
         a  = a.to(torch.int64)
+        Gt = Gt.detach()
         for _ in range(epochs):
             idx = torch.randperm(len(s))
             for start in range(0, len(s), mb_size):
