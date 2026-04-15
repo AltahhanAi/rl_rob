@@ -28,6 +28,18 @@ from collections import deque
 from random import sample
 from math import prod
 from torch.distributions import Normal
+
+# deals with traces addition and multiplication
+class Trace(list):
+    def __imul__(self, scalar):
+        for z in self:
+            z.mul_(scalar)
+        return self
+    
+    def __iadd__(self, grads):
+        for z, g in zip(self, grads):
+            z.add_(g)
+        return self
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', 
@@ -105,7 +117,9 @@ class nnModel(nn.Module):
     def update(self, δ, z):
         with torch.no_grad():
             for z_, p in zip(z, self.parameters()):
-                p.grad.copy_(-δ.item() * z_ / len(z_[0]))
+                if p.grad is None:
+                    p.grad = torch.zeros_like(p)
+                p.grad.copy_(-δ.item() * z_)
         if self.CNN and self.clipCNN: clip_grad_norm_(self.parameters(), max_norm=1.0)
         self.optim.step()
         self.optim.zero_grad()
