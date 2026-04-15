@@ -234,7 +234,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        self.wϴ = self.create_model(net_str='wϴ',  mmodel_class=ac_model_class)) # continuous actions
+        self.wϴ = self.create_model(net_str='wϴ',  mmodel_class=ac_model_class) # continuous actions
         self.policy = self.Gaussian
 
     def init_(self):
