@@ -5,7 +5,7 @@
 import gymnasium as gym
 from gymnasium import spaces
 from gymnasium.spaces.utils import flatdim, flatten
-from ocatari.core import OCAtari # extract features for pong, useful to avoid having to deal with images
+# from ocatari.core import OCAtari # extract features for pong, useful to avoid having to deal with images
 import minigrid  # ensures env registration
 import itertools
 
