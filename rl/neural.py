@@ -53,9 +53,10 @@ class nnMRP(MRP):
         self.load_weights_ = load_weights
         self.save_weights_ = save_weights
         self.t_ = 0
+        self.clipCNN = clipCNN
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
-        self.clipCNN = clipCNN
+        
 
     def init_(self):
         torch.manual_seed(self.seed)
