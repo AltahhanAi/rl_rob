@@ -297,7 +297,7 @@ class nnACSharedModel(nnSplitModel):
     
     def fit(self, s, a, Gt, γt=1.0, exact=True):
         a  = a.to(torch.int64)
-        Gt = Gt.detach()
+        # Gt = Gt.detach()
 
         self.train()
         self.optim.zero_grad()
