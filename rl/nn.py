@@ -264,7 +264,7 @@ class nnACSharedModel(nnSplitModel):
         critic_loss   = 0.5 * F.mse_loss(V, Gt)
         actor_loss    = -(log_prob * A).mean() * self.τ                    # τ scales the policy gradient
         entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
-        loss = actor_loss + critic_loss - self.β_entropy=0.01 * entropy_bonus
+        loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
         loss.backward()
         clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
         self.optim.step()
