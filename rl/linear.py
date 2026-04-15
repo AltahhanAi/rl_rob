@@ -416,7 +416,7 @@ def ENFORCE(_PG_=vPG):
     
         def offline(self):
             # Δlogπ vPG performs outer prodcut Δlogπ(s,a)@ΔQ(s)
-            Δlogπ, ΔV, γ, αv, αq, τ = self.Δlogπ, self.ΔV, self.τ, self.γ, self.αv, self.αq, getattr(self, 'τ', 1)
+            Δlogπ, ΔV, γ, αv, αq, τ = self.Δlogπ, self.ΔV, self.γ, self.αv, self.αq, getattr(self, 'τ', 1)
             
             # obtain the return for the latest episode
             Gt = 0
@@ -430,7 +430,7 @@ def ENFORCE(_PG_=vPG):
                 δ = Gt - self.V(s)
     
                 self.w += αv*δ*ΔV(s)
-                self.Θ += αq*δ*Δlogπ(s,a)*(γt/τ) # @ outer product: update all actions; ∇π involves all actions
+                self.Θ += αq*δ*Δlogπ(s,a)*(γt/τ) # @ update all actions; ∇π involves all actions; Δlogπ(s,a) returns (nA x nS)
                 γt /= γ
     
     return vREINFORCE
