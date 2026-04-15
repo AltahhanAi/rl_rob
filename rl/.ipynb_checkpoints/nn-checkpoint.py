@@ -256,6 +256,7 @@ class nnACSharedModel(nnSplitModel):
     # def forward(self, x):
     #     V, logits = super().forward(x)
     #     return V, F.softmax(logits, dim=-1)
+    
     def forward(self, x):
         V, logits = super().forward(x)
         return V, F.softmax(logits / self.τ, dim=-1)    
@@ -263,6 +264,7 @@ class nnACSharedModel(nnSplitModel):
     def logπ(self, s, a):
         V, π = self(s)
         return V, torch.log(π[range(len(a)), a]), π
+        
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
     
@@ -322,7 +324,7 @@ class nnACSharedModel(nnSplitModel):
             V = V.squeeze(-1)                                          # 🟡 fix: (B,) in batch path, scalar after [0] in single path
             a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
             if s_batch: return V, π
-            return V[0], π[0]
+            return V, π
 # ===============================================================================================
 class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, **kw):
