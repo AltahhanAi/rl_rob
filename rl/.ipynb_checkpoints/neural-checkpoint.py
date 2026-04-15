@@ -206,6 +206,7 @@ class nnPG(PG(nnMDP)):
         # self.Q_ = self.Q
         self.H_ = self.H
 
+    
     def V(self, s=None):
         V, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
         return V.detach().numpy().squeeze(-1)
