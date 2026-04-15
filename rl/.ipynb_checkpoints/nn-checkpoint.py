@@ -355,6 +355,32 @@ class nnACSharedModel(nnSplitModel):
     #     self.optim.step()
     #     return loss.item()
 # ===============================================================================================
+
+class nnACEpochModel(nnACSharedModel):
+    
+    def fit(self, s, a, A, Gt, logπ_old, epochs, mb_size, ε_clip):
+        for _ in range(epochs):
+            idx = torch.randperm(len(s))
+            for start in range(0, len(s), mb_size):
+                mb         = idx[start:start + mb_size]
+                V_mb, π_mb = self(s[mb])
+                V_mb       = V_mb.squeeze(-1)
+                logπ_mb    = torch.log(π_mb[range(len(mb)), a[mb]] + 1e-8)
+                r          = (logπ_mb - logπ_old[mb]).exp()
+                L_clip     = torch.min(r * A[mb], torch.clamp(r, 1-ε_clip, 1+ε_clip) * A[mb]).mean()
+                L_critic   = 0.5 * F.mse_loss(V_mb, Gt[mb])
+                L_entropy  = self.entropy(π_mb) * self.τ
+                loss       = -L_clip + L_critic - self.β_entropy * L_entropy
+                self.optim.zero_grad()
+                loss.backward()
+                if self.CNN and self.clipCNN:
+                    trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+                    clip_grad_norm_(trunk_params,            max_norm=1.0)
+                    clip_grad_norm_(self.head1.parameters(), max_norm=0.5)
+                    clip_grad_norm_(self.head2.parameters(), max_norm=1.0)
+                self.optim.step()
+# ===============================================================================================
+
 class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, **kw):
         super().__init__(out_dim=out_dim, **kw)
