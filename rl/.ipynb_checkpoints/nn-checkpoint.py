@@ -7,7 +7,7 @@ Permission required for redistribution or research/commercial use.
 
 import time
 import os
-# import cv2
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.random import rand
