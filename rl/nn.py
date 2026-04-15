@@ -221,12 +221,12 @@ class nnSplitModel(nnModel):
         αv = getattr(self, 'αv', None)
         αq = getattr(self, 'αq', None)
         if αv is not None and αq is not None:
-        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-        self.optim = optim.Adam([
-            {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
-            {'params': list(self.head2.parameters()),                 'lr': αq}
-        ])
-        
+            trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+            self.optim = optim.Adam([
+                {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
+                {'params': list(self.head2.parameters()),                 'lr': αq}
+            ])
+            
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
