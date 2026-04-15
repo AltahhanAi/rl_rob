@@ -231,15 +231,27 @@ class nnDuelModel(nnSplitModel):
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv, αq,  τ=1.0, β_entropy=0.01, **kw):
-        super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
-        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
+    def __init__(self, out_dim, αv, αq, τ=1.0, β_entropy=.01, **kw):
+        super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
+        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
         self.β_entropy = β_entropy
+        αt = αq #(αv + αq) / 2                                      # trunk lr: geometric mean of both signals
         self.optim = optim.Adam([
-            {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
-            {'params': list(self.head2.parameters()),  'lr': αq}
+            {'params': trunk_params,                   'lr': αt},  # trunk: balanced between actor and critic
+            {'params': list(self.head1.parameters()), 'lr': αv},  # critic head: faster
+            {'params': list(self.head2.parameters()), 'lr': αq},  # actor head: slower
         ])
-        self.τ = τ  
+        self.τ = τ
+        
+    # def __init__(self, out_dim, αv, αq,  τ=1.0, β_entropy=0.01, **kw):
+    #     super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
+    #     trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
+    #     self.β_entropy = β_entropy
+    #     self.optim = optim.Adam([
+    #         {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
+    #         {'params': list(self.head2.parameters()),  'lr': αq}
+    #     ])
+    #     self.τ = τ  
     # def forward(self, x):
     #     V, logits = super().forward(x)
     #     return V, F.softmax(logits, dim=-1)

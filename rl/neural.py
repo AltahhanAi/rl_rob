@@ -74,6 +74,7 @@ class nnMRP(MRP):
             nF=self.nF, out_dim=self.action_dim,
             α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None),
             τ=getattr(self, 'τ', 1.0),                    # pass τ, default to 1.0 if not set
+            β_entropy=getattr(self, 'β_entropy', 0.0),
             net_str=net_str, final_bias=self.final_bias,
             clipCNN=self.clipCNN,  
         )
@@ -515,124 +516,134 @@ class nnSarsaλ(nnMDP):
         self.Z += self.W.Δ(Qs[:, a])         # z ← z + ∇Q(s,a)
         self.W.update(δ, self.Z)             # θ ← θ + α·δ·z
 
+class nnActor_Critic(nnPG):
+    # -----------------------🌖 online learning -------------------
+    def online(self, *args):
+        s, a, rn, sn, done = self.trajectory(-1)   # one step only
+        Vn, *_ = self.wϴ(sn)
+        Vn = Vn.squeeze(1).detach()
+        Vn[done] = 0
+        Gt = rn + self.γ * Vn                      # one-step return
+        a  = a.to(torch.int64)
+        self.wϴ.fit(s, a, Gt)
+        
 # ===============================================================================================
-def AC(base=nnPG, label='AC'):
-    class nnAC_(base):
-        def online(self, *args):
-            if len(self.buffer) < self.nbatch: return
-            (s, a, rn, sn, dones), inds = self.batch()
-            Vn, *_ = self.wϴ(sn); Vn = Vn.squeeze(1).detach()
-            Vn[dones] = 0
-            Gt = rn + self.γ * Vn
-            a  = torch.tensor(np.array(a.tolist()), dtype=torch.float32 if label == 'continuous' else torch.int64)
-            loss = self.wϴ.fit(s, a, Gt)
-    nnAC_.__name__ = f'AC_{label}'
-    return nnAC_
+# def AC(base=nnPG, label='AC'):
+#     class nnAC_(base):
+#         def online(self, *args):
+#             if len(self.buffer) < self.nbatch: return
+#             (s, a, rn, sn, dones), inds = self.batch()
+#             Vn, *_ = self.wϴ(sn); Vn = Vn.squeeze(1).detach()
+#             Vn[dones] = 0
+#             Gt = rn + self.γ * Vn
+#             a  = torch.tensor(np.array(a.tolist()), dtype=torch.float32 if label == 'continuous' else torch.int64)
+#             loss = self.wϴ.fit(s, a, Gt)
+#     nnAC_.__name__ = f'AC_{label}'
+#     return nnAC_
 
-# ===============================================================================================
-nnAC  = AC(nnPG,  'discrete')
-nnACc = AC(nnPGc, 'continuous')
+# # ===============================================================================================
+# nnAC  = AC(nnPG,  'discrete')
+# nnACc = AC(nnPGc, 'continuous')
 
+# # ===============================================================================================
+# '''
+# nnRollout replaces the replay buffer with a rollout buffer for on-policy methods.
+# It collects full trajectories, computes GAE advantages, and supports multiple epochs
+# over the same rollout.
+# '''
+# class nnPGcrollout(nnPGc):
+#     def __init__(self, nsteps=128, epochs=4, λ=0.95, **kw):
+#         super().__init__(create_w=False, **kw)
+#         self.nsteps = nsteps
+#         self.epochs = epochs
+#         self.λ      = λ
+#         self.s    = []
+#         self.a    = []
+#         self.rn   = []
+#         self.done = []
+#         self.logπ = []
+#         self.Vb   = []
 
-# ===============================================================================================
-'''
-nnRollout replaces the replay buffer with a rollout buffer for on-policy methods.
-It collects full trajectories, computes GAE advantages, and supports multiple epochs
-over the same rollout.
-'''
-class nnPGcrollout(nnPGc):
-    def __init__(self, nsteps=128, epochs=4, λ=0.95, **kw):
-        super().__init__(create_w=False, **kw)
-        self.nsteps = nsteps
-        self.epochs = epochs
-        self.λ      = λ
-        self.s    = []
-        self.a    = []
-        self.rn   = []
-        self.done = []
-        self.logπ = []
-        self.Vb   = []
+#     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
+#         s_t  = torch.tensor(s, dtype=torch.float32).unsqueeze(0)
+#         a_t  = torch.tensor(a, dtype=torch.float32)
+#         with torch.no_grad():
+#             V, μ, σ = self.wϴ(s_t)
+#             logπ    = Normal(μ, σ).log_prob(a_t).sum().item()
+#         self.s.append(s)
+#         self.a.append(a)
+#         self.rn.append(rn)
+#         self.done.append(done)
+#         self.logπ.append(logπ)
+#         self.Vb.append(V.item())
 
-    def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
-        s_t  = torch.tensor(s, dtype=torch.float32).unsqueeze(0)
-        a_t  = torch.tensor(a, dtype=torch.float32)
-        with torch.no_grad():
-            V, μ, σ = self.wϴ(s_t)
-            logπ    = Normal(μ, σ).log_prob(a_t).sum().item()
-        self.s.append(s)
-        self.a.append(a)
-        self.rn.append(rn)
-        self.done.append(done)
-        self.logπ.append(logπ)
-        self.Vb.append(V.item())
+#     def GAE(self, sn_last, done_last):
+#         γ = self.γ
+#         with torch.no_grad():
+#             Vn_last, _, _ = self.wϴ(torch.tensor(sn_last, dtype=torch.float32).unsqueeze(0))
+#             Vn_last = 0 if done_last else Vn_last.item()
+#         As = []
+#         Gt = []
+#         A  = 0
+#         Vn = Vn_last
+#         for rn, V, done in zip(reversed(self.rn), reversed(self.Vb), reversed(self.done)):
+#             δ  = rn + γ * Vn * (1 - done) - V
+#             A  = δ + γ * self.λ * A * (1 - done)
+#             As.insert(0, A)
+#             Gt.insert(0, A + V)
+#             Vn = V
+#         return torch.tensor(As, dtype=torch.float32), torch.tensor(Gt, dtype=torch.float32)
 
-    def GAE(self, sn_last, done_last):
-        γ = self.γ
-        with torch.no_grad():
-            Vn_last, _, _ = self.wϴ(torch.tensor(sn_last, dtype=torch.float32).unsqueeze(0))
-            Vn_last = 0 if done_last else Vn_last.item()
-        As = []
-        Gt = []
-        A  = 0
-        Vn = Vn_last
-        for rn, V, done in zip(reversed(self.rn), reversed(self.Vb), reversed(self.done)):
-            δ  = rn + γ * Vn * (1 - done) - V
-            A  = δ + γ * self.λ * A * (1 - done)
-            As.insert(0, A)
-            Gt.insert(0, A + V)
-            Vn = V
-        return torch.tensor(As, dtype=torch.float32), torch.tensor(Gt, dtype=torch.float32)
+#     def rollout_batch(self):
+#         s        = torch.tensor(np.array(self.s),  dtype=torch.float32)
+#         a        = torch.tensor(np.array(self.a),  dtype=torch.float32)
+#         logπ_old = torch.tensor(self.logπ,         dtype=torch.float32)
+#         return s, a, logπ_old
 
-    def rollout_batch(self):
-        s        = torch.tensor(np.array(self.s),  dtype=torch.float32)
-        a        = torch.tensor(np.array(self.a),  dtype=torch.float32)
-        logπ_old = torch.tensor(self.logπ,         dtype=torch.float32)
-        return s, a, logπ_old
+#     def clear_rollout(self):
+#         self.s    = []
+#         self.a    = []
+#         self.rn   = []
+#         self.done = []
+#         self.logπ = []
+#         self.Vb   = []
 
-    def clear_rollout(self):
-        self.s    = []
-        self.a    = []
-        self.rn   = []
-        self.done = []
-        self.logπ = []
-        self.Vb   = []
+# # ===============================================================================================
+# '''
+# PPO — Proximal Policy Optimisation.
+# Inherits Gaussian policy and ϴ network from nnPGc, rollout buffer and GAE from nnRollout.
+# The student only needs to see this class.
+# '''
+# class PPO(nnPGcrollout):
+#     def __init__(self, ε_clip=0.2, **kw):
+#         super().__init__(**kw)
+#         self.ε_clip = ε_clip
 
-# ===============================================================================================
-'''
-PPO — Proximal Policy Optimisation.
-Inherits Gaussian policy and ϴ network from nnPGc, rollout buffer and GAE from nnRollout.
-The student only needs to see this class.
-'''
-class PPO(nnPGcrollout):
-    def __init__(self, ε_clip=0.2, **kw):
-        super().__init__(**kw)
-        self.ε_clip = ε_clip
-
-    def online(self, s, a, rn, sn, an, done, t):
-        if len(self.s) < self.nsteps: return
-        As_, Gt_          = self.GAE(sn, done)
-        s_, a_, logπ_old_ = self.rollout_batch()
-        As_ = (As_ - As_.mean()) / (As_.std() + 1e-8)         # normalise advantages
-        ε   = self.ε_clip
-        for _ in range(self.epochs):
-            self.wϴ.train()
-            idx = torch.randperm(self.nsteps)
-            for start in range(0, self.nsteps, self.nbatch):
-                mb                     = idx[start:start + self.nbatch]
-                s, a, logπ_old, As, Gt = s_[mb], a_[mb], logπ_old_[mb], As_[mb], Gt_[mb]
-                self.wϴ.optim.zero_grad()
-                V, μ, σ  = self.wϴ(s) ; V = V.squeeze(1)
-                p         = Normal(μ, σ)
-                logπ      = p.log_prob(a).sum(dim=-1)
-                r         = (logπ - logπ_old).exp()            # π_new / π_old
-                L_actor   = torch.min(r * As, torch.clamp(r, 1-ε, 1+ε) * As).mean()
-                L_critic  = 0.5  * F.mse_loss(V, Gt)
-                L_entropy = 0.01 * p.entropy().mean()
-                loss      = -(L_actor - L_critic + L_entropy)
-                loss.backward()
-                clip_grad_norm_(self.wϴ.parameters(), max_norm=0.5)
-                self.wϴ.optim.step()
-        self.clear_rollout()
+#     def online(self, s, a, rn, sn, an, done, t):
+#         if len(self.s) < self.nsteps: return
+#         As_, Gt_          = self.GAE(sn, done)
+#         s_, a_, logπ_old_ = self.rollout_batch()
+#         As_ = (As_ - As_.mean()) / (As_.std() + 1e-8)         # normalise advantages
+#         ε   = self.ε_clip
+#         for _ in range(self.epochs):
+#             self.wϴ.train()
+#             idx = torch.randperm(self.nsteps)
+#             for start in range(0, self.nsteps, self.nbatch):
+#                 mb                     = idx[start:start + self.nbatch]
+#                 s, a, logπ_old, As, Gt = s_[mb], a_[mb], logπ_old_[mb], As_[mb], Gt_[mb]
+#                 self.wϴ.optim.zero_grad()
+#                 V, μ, σ  = self.wϴ(s) ; V = V.squeeze(1)
+#                 p         = Normal(μ, σ)
+#                 logπ      = p.log_prob(a).sum(dim=-1)
+#                 r         = (logπ - logπ_old).exp()            # π_new / π_old
+#                 L_actor   = torch.min(r * As, torch.clamp(r, 1-ε, 1+ε) * As).mean()
+#                 L_critic  = 0.5  * F.mse_loss(V, Gt)
+#                 L_entropy = 0.01 * p.entropy().mean()
+#                 loss      = -(L_actor - L_critic + L_entropy)
+#                 loss.backward()
+#                 clip_grad_norm_(self.wϴ.parameters(), max_norm=0.5)
+#                 self.wϴ.optim.step()
+#         self.clear_rollout()
 
 # =================================================================================================
 # usage example
