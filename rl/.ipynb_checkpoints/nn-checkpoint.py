@@ -270,6 +270,7 @@ class nnACSharedModel(nnSplitModel):
         self.optim.step()
         return loss.item()
 
+
     
     # def fit(self, s, a, Gt):
     #     self.train()
