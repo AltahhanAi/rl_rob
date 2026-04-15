@@ -360,6 +360,7 @@ class nnACSharedModel(nnSplitModel):
 class nnACEpochModel(nnACSharedModel):
     
     def fit(self, s, a, A, Gt, logπ_old, epochs, mb_size, ε_clip):
+        a  = a.to(torch.int64)
         for _ in range(epochs):
             idx = torch.randperm(len(s))
             for start in range(0, len(s), mb_size):
