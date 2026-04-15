@@ -285,7 +285,8 @@ class nnACSharedModel(nnSplitModel):
     #     clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
     #     self.optim.step()
     #     return loss.item()
-    # def predict(self, s, state_dim, deterministic=False):
+    
+    def predict(self, s, state_dim, deterministic=False):
         if not isinstance(s, torch.Tensor):
             s = torch.tensor(s, dtype=torch.float32)
         s_batch = s.ndim > len(state_dim)
