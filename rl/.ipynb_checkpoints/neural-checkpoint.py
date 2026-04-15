@@ -464,12 +464,54 @@ class DDQN(DQN):
         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_Wn:
             self.Wn.set_weights(self.W, 'Q', self.t_)
 # ===============================================================================================
+
 class DuelDQN(DQN):
     def __init__(self, model_class=nnDuelModel, **kw):
         super().__init__(model_class=model_class, **kw)
 
+# ===================================Eligibility Traces with Neural Net !==============================================
 
+class nnTDλ(nnMRP):
+    def __init__(self, λ=0.8, clipCNN=False, **kw):
+        super().__init__(clipCNN=clipCNN, **kw)
+        self.λ = λ
 
+    def step0(self):
+        self.z = Trace(torch.zeros_like(p) for p in self.w.parameters())
+
+    def online(self, s, rn, sn, done, *args):
+        s, _, rn, sn, done = self.trajectory(-1)
+
+        Vs = self.w(s)
+        Vn = self.w(sn).detach()
+        δ  = (rn + (1 - done.float()) * self.γ * Vn - Vs).detach().squeeze()
+        
+        self.z *= self.γ * self.λ
+        self.z += self.w.Δ(Vs)           # ∇V(s)
+        self.w.update(δ, self.z)         # θ ← θ + α·δ·z
+# ===============================================================================================
+class nnSarsaλ(nnMDP):
+    def __init__(self, λ=0.8, clipCNN=False, **kw):
+        super().__init__(clipCNN=clipCNN, **kw)
+        self.λ = λ
+
+    def init(self):
+        self.step = self.step_an
+
+    def step0(self):
+        self.Z = Trace(torch.zeros_like(p) for p in self.W.parameters()) 
+
+    def online(self, s, rn, sn, done, a, an):
+        s, a, rn, sn, done = self.trajectory(-1)
+
+        Qs = self.W(s)
+        Qn = self.W(sn).detach()
+
+        δ = ((1 - done.float()) * self.γ * Qn[:, an] + rn.squeeze() - Qs[:, a]).detach().squeeze()
+
+        self.Z *= self.γ * self.λ            # z ← γλz
+        self.Z += self.W.Δ(Qs[:, a])         # z ← z + ∇Q(s,a)
+        self.W.update(δ, self.Z)             # θ ← θ + α·δ·z
 
 # ===============================================================================================
 def AC(base=nnPG, label='AC'):
