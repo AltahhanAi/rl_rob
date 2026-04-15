@@ -227,14 +227,14 @@ class nnPG(PG(nnMDP)):
         
 # ===============================================================================================
 class nnPGc(PG(nnMDP)):
-    def __init__(self, σ=1, σmin=.01, dσ=1, Tσ=0, **kw):
+    def __init__(self, σ=1, σmin=.01, dσ=1, Tσ=0, ac_model_class=nnACcSharedModel, **kw):
         super().__init__(action_dtype=torch.float32, **kw)
         self.σ    = σ
         self.σ0   = σ
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        self.wϴ = self.create_model(net_str='wϴ',  mmodel_class=ac_model_class) # continuous actions
+        self.wϴ = self.create_model(net_str='wϴ',  mmodel_class=ac_model_class)) # continuous actions
         self.policy = self.Gaussian
 
     def init_(self):
