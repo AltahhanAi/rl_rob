@@ -295,45 +295,6 @@ class nnACSharedModel(nnSplitModel):
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
 
-    def fit___(self, s, a, Gt, γt=1.0, exact=True):
-        a  = a.to(torch.int64)
-
-        self.train()
-        self.optim.zero_grad()
-        
-        V, log_prob, π = self.logπ(s, a); V  = V.squeeze(-1)
-        
-        Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
-        A  = (Gt - V).detach()
-        
-        # critic_loss   = 0.5 * F.mse_loss(V, Gt)
-    
-            
-        actor_loss    = -(log_prob * A * γt).mean() * self.τ               # τ scales the policy gradient
-        entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
-        
-        if exact: 
-            critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
-       
-        else:     
-            critic_loss = 0.5 * F.mse_loss(V, Gt)
-        
-        loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
-        loss.backward()
-        
-        # clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
-        if self.CNN and self.clipCNN:
-            # clip actor and critic heads independently so critic's large gradients
-            # don't crowd out the actor's smaller ones
-            trunk_params  = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-            clip_grad_norm_(trunk_params                    , max_norm=1.0)  # trunk
-            clip_grad_norm_(self.head1.parameters()         , max_norm=0.5)  # critic head: tighter, grads are large
-            clip_grad_norm_(self.head2.parameters()         , max_norm=1.0)  # actor head:  full budget
-
-        self.optim.step()
-        return loss.item()
-
-
     def fit(self, s, a, Gt, γt=1.0, exact=True):
         a  = a.to(torch.int64)
 
