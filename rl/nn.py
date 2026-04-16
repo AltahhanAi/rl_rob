@@ -295,7 +295,7 @@ class nnACSharedModel(nnSplitModel):
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
 
-  def fit___(self, s, a, Gt, γt=1.0, exact=True):
+    def fit___(self, s, a, Gt, γt=1.0, exact=True):
         a  = a.to(torch.int64)
 
         self.train()
