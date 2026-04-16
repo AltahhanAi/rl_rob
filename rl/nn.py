@@ -297,24 +297,28 @@ class nnACSharedModel(nnSplitModel):
     
     def fit(self, s, a, Gt, γt=1.0, exact=True):
         a  = a.to(torch.int64)
-        # Gt = Gt.detach()
 
         self.train()
         self.optim.zero_grad()
         
-        V, log_prob, π = self.logπ(s, a)
-        V  = V.squeeze(-1)
+        V, log_prob, π = self.logπ(s, a); V  = V.squeeze(-1)
+        
         Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
         A  = (Gt - V).detach()
         
         # critic_loss   = 0.5 * F.mse_loss(V, Gt)
-        
-        if exact: critic_loss = 0.5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
-        else:     critic_loss = 0.5 * F.mse_loss(V, Gt)
+    
             
-        actor_loss    = -(log_prob * A * γt).mean() * self.τ               # τ scales the policy gradient
-        entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
-        loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
+        actor_loss    = -(log_prob * A).mean()              # τ scales the policy gradient
+        entropy_bonus = self.entropy(π)                          # τ scales entropy bonus consistently
+        
+        if exact: 
+            critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
+       
+        else:     
+            critic_loss = 0.5 * F.mse_loss(V, Gt)
+        
+        loss = actor_loss* γt/self.τ + critic_loss - (self.β_entropy/self.τ ) * entropy_bonus
         loss.backward()
         
         # clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
