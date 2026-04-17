@@ -47,7 +47,7 @@ import traceback
 
 class MRP:
     
-    def __init__(self, env=randwalk(), γ=None, α=.1, v0=0, episodes=20, view=1,
+    def __init__(self, env=randwalk(), γ=None, α=.1, v0=0, episodes=100, view=1,
                  store=False, # Majority of methods are pure one-step online and no need to store episode trajectories 
                  max_t=2000, seed=0, visual=False, underhood='',
                  last=10, print_=False, file_name='experiment.pkl', save_every=None, save_final=False, overwrite=False,
