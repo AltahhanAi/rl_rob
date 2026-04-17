@@ -153,7 +153,7 @@ class MRP:
         sn, rn, done, _, _ = self.env.step(a)
 
         # # we added s=s for compatibility with deep learning
-        # self.store_(s=s, a=a, rn=rn, sn=sn, done=done, t=t)
+        self.store_(s=s, a=a, rn=rn, sn=sn, done=done, t=t)
 
         # None is returned for compatibility with other algorithms
         return rn,sn, a,None, done
@@ -165,7 +165,7 @@ class MRP:
         an = self.policy(sn)
 
         # # we added s=s for compatibility with deep learning later
-        # self.store_(s=s, a=a, rn=rn, sn=sn, an=an, done=done, t=t)
+        self.store_(s=s, a=a, rn=rn, sn=sn, an=an, done=done, t=t)
         return rn,sn, a,an, done
 
     #------------------------------------  online learning and interaction --------------------------------
@@ -210,7 +210,7 @@ class MRP:
 
                     # keep the order, do not change
                     rn,sn, a,an, done = self.step(s,a, self.t)                # takes a step in env and stores the trajectory if needed
-                    self.store_(s=s, a=a, rn=rn, sn=sn, done=done, t=self.t)  # we added s=s for compatibility with deep learning
+                    # self.store_(s=s, a=a, rn=rn, sn=sn, done=done, t=self.t)  # we added s=s for compatibility with deep learning
                     s, rn,sn, a,an, done = self.type_convert(s,rn,sn, a,an, done ) # convert the data if necessary
                     self.online(s, rn, sn, done, a, an) if train else None # to learn online, pass a one step trajectory
     
