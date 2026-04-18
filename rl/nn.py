@@ -395,6 +395,7 @@ class nnACcSharedModel(nnACSharedModel):
         return π.entropy()
         
     def predict(self, s, state_dim):
-        return super().predict(s, state_dim), self.σ
+        V, μ = super().predict(s, state_dim)
+        return V, μ, self.σ
     
 
