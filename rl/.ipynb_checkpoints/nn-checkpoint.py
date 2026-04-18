@@ -209,24 +209,6 @@ class nnSplitModel(nnModel):
         self.layers.append(self.head2)                         # register for summary
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
-    # def init_weights(self, head1_v0=None, head2_q0=None):
-    #     super().init_weights(skip_from=self.head_idx)  # trunk only
-    #     gain = init.calculate_gain('relu')
-    #     for head, v0 in [(self.head1, head1_v0),
-    #                      (self.head2, head2_q0)]:
-    #         init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
-    #         if head.bias is not None: init.zeros_(head.bias)
-        
-    #     # restore the param-group optimizer that super() just overwrote
-    #     αv = getattr(self, 'αv', None)
-    #     αq = getattr(self, 'αq', None)
-    #     if αv is not None and αq is not None:
-    #         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-    #         self.optim = optim.Adam([
-    #             {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
-    #             {'params': list(self.head2.parameters()),                 'lr': αq}
-    #         ])
-
     def init_weights(self, head1_v0=None, head2_q0=None):
         super().init_weights(skip_from=self.head_idx)
         gain = init.calculate_gain('relu')
@@ -257,8 +239,8 @@ class nnDuelModel(nnSplitModel):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
 
     def forward(self, x):
-        V, A = super().forward(x)
-        return V + (A - A.mean(dim=1, keepdim=True))
+        V, Q = super().forward(x)
+        return V + Q - Q.mean(dim=1, keepdim=True))
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
@@ -274,13 +256,17 @@ class nnACSharedModel(nnSplitModel):
     def forward(self, x):
         V, logits = super().forward(x)
         return V, F.softmax(logits / self.τ, dim=-1)    
-        
-    def logπ(self, s, a):
+
+    # useful for inheritence
+    def Vπ(self, s, a):
         V, π = self(s)
-        return V, torch.log(π[range(len(a)), a]), π
+        return V.squeeze(-1), π 
+    
+    def logπ(self, π):
+        return torch.log(π[range(len(a)), a])
         
     def entropy(self, π):
-        return -(π * torch.log(π + 1e-8)).sum(dim=-1).mean()
+        return -(π * torch.log(π + 1e-8)).sum(dim=-1)
 
     def fit(self, s, a, Gt, γt=1.0, exact=True):
         a  = a.to(torch.int64)
@@ -288,29 +274,20 @@ class nnACSharedModel(nnSplitModel):
         self.train()
         self.optim.zero_grad()
         
-        V, logπ, π = self.logπ(s, a); V  = V.squeeze(-1)
+        V, π = self.logπ(s, a)
+        logπ = self.logπ(π)
+        πlogπ = sel.entropy(π)
         
-        Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
-        A  = (Gt - V).detach()
+        Gt =  Gt.squeeze(-1) if Gt.ndim > 1 else Gt
+        δ = (Gt - V).detach()
+                
+        critic_loss  =   .5 * F.mse_loss(V, Gt, reduction='sum') / len(V) if exact else .5 * F.mse_loss(V, Gt) # minimises δ
+        actor_loss   = -(logπ*δ*γt).mean()    # maximises π objective δ*logπ*γ^t
+        entropy_loss =  -πlogπ.mean()         # maximises entropy
         
-        # critic_loss   = 0.5 * F.mse_loss(V, Gt)
-        # if exact: 
-        #     critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
-       
-        # else:     
-        #     critic_loss = 0.5 * F.mse_loss(V, Gt) 
-            
-        # actor_loss    = -(log_prob * A * γt).mean() * self.τ               # τ scales the policy gradient
-        # entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
-        
-        critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V) if exact else .5 * F.mse_loss(V, Gt)
-        actor_loss   = -(A*logπ * γt).mean()    
-        entropy_loss = -self.entropy(π).mean()
-        
-        loss = actor_loss + critic_loss + self.β_entropy * entropy_loss
+        loss = critic_loss + actor_loss +  self.β_entropy * entropy_loss
         loss.backward()
         
-        # clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
         if self.CNN and self.clipCNN:
             # clip actor and critic heads independently so critic's large gradients
             # don't crowd out the actor's smaller ones
@@ -322,18 +299,14 @@ class nnACSharedModel(nnSplitModel):
         self.optim.step()
         return loss.item()
 
-    def predict(self, s, state_dim, deterministic=False):
-        if not isinstance(s, torch.Tensor):
-            s = torch.tensor(s, dtype=torch.float32)
+    def predict(self, s, state_dim):
+        s = torch.tensor(s, dtype=torch.float32) if not isinstance(s, torch.Tensor) else s
         s_batch = s.ndim > len(state_dim)
-        if not s_batch: s = s.unsqueeze(0)
+        s = s.unsqueeze(0) if not s_batch else s
         self.eval()
         with torch.no_grad():
             V, π = self(s)
-            V = V.squeeze(-1)
-            a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
-            if s_batch: return V, π
-            return V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
+            return V, π if s_batch V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
             
 # ===============================================================================================
 
@@ -364,33 +337,63 @@ class nnACEpochModel(nnACSharedModel):
                 self.optim.step()
 # ===============================================================================================
 
-class nnACcSharedModel(nnACSharedModel):
-    def __init__(self, out_dim, **kw):
-        super().__init__(out_dim=out_dim, **kw)
-        feat_in     = self.head2.in_features
-        self.μ_head = self.head2
-        self.σ_head = nn.Linear(feat_in, out_dim, bias=self.final_bias)
+# class nnACcSharedModel(nnACSharedModel):
+#     def __init__(self, out_dim, **kw):
+#         super().__init__(out_dim=out_dim, **kw)
+#         feat_in     = self.head2.in_features
+#         self.μ_head = self.head2
+#         self.σ_head = nn.Linear(feat_in, out_dim, bias=self.final_bias)
 
+#     def forward(self, x):
+#         V, μ = nnSplitModel.forward(self, x)
+#         σ    = F.softplus(self.σ_head(self._trunk_out)) + 1e-6
+#         return V, μ, σ
+
+#     def logπ(self, s, a):
+#         V, μ, σ = self(s)
+#         dist = Normal(μ, σ)
+#         return V, dist.log_prob(a).sum(dim=-1), dist
+
+#     def entropy(self, dist):
+#         return dist.entropy().mean()
+
+#     def predict(self, s, state_dim, deterministic=False):
+#         if not isinstance(s, torch.Tensor):
+#             s = torch.tensor(s, dtype=torch.float32)
+#         s_batch = s.ndim > len(state_dim)
+#         if not s_batch: s = s.unsqueeze(0)
+#         self.eval()
+#         with torch.no_grad():
+#             V, μ, σ = self(s)
+#             if s_batch: return V, μ, σ
+#             return V.squeeze(0), π.squeeze(0), σ
+
+class nnACcSharedModel(nnACSharedModel):
+    def __init__(self, out_dim, σ=1, **kw):
+        super().__init__(out_dim=out_dim, **kw)
+        self.μ_head = self.head2
+        self.σ = σ    # no σ_head σ is passed from nnPGc
+    
+    # overriding for readability
     def forward(self, x):
         V, μ = nnSplitModel.forward(self, x)
-        σ    = F.softplus(self.σ_head(self._trunk_out)) + 1e-6
-        return V, μ, σ
+        return V, μ
+        
+    # overriding for neccessity
+    def Vπ(self, s, a):
+        (V, μ ), σ = self(s), self.σ
+        return V, self.π(μ, σ)
 
-    def logπ(self, s, a):
-        V, μ, σ = self(s)
+    def logπ(self, π):
+        return π.log_prob(a).sum(dim=-1)
+    
+    def π(self, s, a):
         dist = Normal(μ, σ)
-        return V, dist.log_prob(a).sum(dim=-1), dist
+        
+    def logπ(self, π):
+        return π.entropy()
+        
+    def predict(self, s, state_dim):
+        return super().predict(s, state_dim), self.σ
+    
 
-    def entropy(self, dist):
-        return dist.entropy().mean()
-
-    def predict(self, s, state_dim, deterministic=False):
-        if not isinstance(s, torch.Tensor):
-            s = torch.tensor(s, dtype=torch.float32)
-        s_batch = s.ndim > len(state_dim)
-        if not s_batch: s = s.unsqueeze(0)
-        self.eval()
-        with torch.no_grad():
-            V, μ, σ = self(s)
-            if s_batch: return V, μ, σ
-            return V[0], μ[0], σ[0]

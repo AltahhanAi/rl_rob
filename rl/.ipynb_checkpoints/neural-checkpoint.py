@@ -10,9 +10,11 @@ from env.grid.neural import *
 
 # ===============================================================================================
 
-# ========= This is where RL enters, the above will be data members of the below classes ========
-# ================ nnMRP, nnMDP, PG Classes with Neural Net =====================================
-#(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+'''nnMRP, nnMDP, PG Classes with Neural Net
+    games: trunk=[(32, 8, 4), (64, 4, 2), (64, 3, 1)], nF=S
+    igrid: trunk=[ (8, 4, 2),  (4, 4, 4)],             nF=S
+'''
+
 class nnMRP(MRP):
     def __init__(self,
                  trunk=[],
@@ -73,8 +75,10 @@ class nnMRP(MRP):
         model = model_class(
             inp_dim=self.state_dim, trunk=self.trunk,
             nF=self.nF, out_dim=self.action_dim,
-            α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None),
-            αt=getattr(self, 'αt', None),            # ← add this
+            α=self.α, 
+            αv=getattr(self, 'αv', None), 
+            αq=getattr(self, 'αq', None),
+            αt=getattr(self, 'αt', None),
             τ=getattr(self, 'τ', 1.0),
             β_entropy=getattr(self, 'β_entropy', 0.01),
             net_str=net_str, final_bias=self.final_bias,
@@ -104,7 +108,6 @@ class nnMRP(MRP):
         buffer = self.buffer
         return list(islice(buffer, len(buffer) - nbatch, len(buffer)))
 
-
     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
         self.buffer.append((
             torch.tensor(s,    dtype=torch.float32),
@@ -131,10 +134,8 @@ class nnMRP(MRP):
             
         elif self.rndbatch:
             samples = sample(self.buffer, nbatch - endbatch)
-            if endbatch:
-                samples.extend(self.slice(endbatch))
-        else:
-            samples = self.slice(nbatch)
+            if endbatch: samples.extend(self.slice(endbatch))
+        else: samples = self.slice(nbatch)
 
         s, a, rn, sn, dones = zip(*samples)
 
@@ -187,23 +188,21 @@ class nnPG(PG(nnMDP)):
         self.V_ = self.V
         # self.Q_ = self.Q
         self.H_ = self.H
-
     
     def V(self, s=None):
         V, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
-        return V.detach().numpy().squeeze(-1)
+        return V.detach().numpy().squeeze(-1) # necessary for the bas classes
 
     def H(self, s=None, a=None):
         _, π = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
         if a is None: return π.detach().numpy()
-        return π[a].detach().numpy()
+        return π[a].detach().numpy() # necessary for base classes
 
     def softmax(self, s):
         _, π = self.wϴ.predict(s, self.state_dim)
         π = π.detach().numpy().flatten()              # flatten to 1-d
         a = choices(range(self.env.nA), weights=π, k=1)[0]
         return a
-        # return np.random.choice(self.env.nA, p=π)
         
 # ===============================================================================================
 class nnPGc(PG(nnMDP)):
@@ -214,6 +213,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
+        # we pass σ via creatmodel for Gaussian: model wϴ does not learns wϴ (passed by user)
         self.wϴ = self.create_model(net_str='wϴ',  model_class=ac_model_class) # continuous actions
         self.policy = self.Gaussian
 
@@ -241,7 +241,7 @@ class nnPGc(PG(nnMDP)):
         _, μ, σ = self.wϴ.predict(s, self.state_dim)
         μ = μ.detach().numpy()
         σ = σ.detach().numpy()
-        a = np.random.normal(μ, σ)
+        a = np.random.normal(μ, σ) # todo: use Normal from torch for better integraiton
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)
         return np.atleast_1d(a)
 
@@ -492,7 +492,7 @@ class nnREINFORCE(nnPG):
     def step0(self):
         self.buffer.clear()
 
-    # ---------------------------- 🌘 offline, MC policy learning: end-of-episode learning ------
+    # ---------------------------- 🌘 offline, MC policy learning: end-of-episode learning ----------------------------
     def offline(self):
         Gt = 0
         γt = self.γ ** self.t
@@ -504,7 +504,7 @@ class nnREINFORCE(nnPG):
             self.wϴ.fit(s, a, Gt, γt=γt)
 
             γt /= self.γ if self.γ != 0 else 1
-# ============================= needs debugging========================================
+# ============================= needs verfying========================================
 '''
 collect the Gt and samples and then batch updat them
 '''
@@ -538,83 +538,6 @@ class nnREINFORCE__(nnPG):
             mb = idx[start:start + self.nbatch]
             self.wϴ.fit(s_all[mb], a_all[mb], Gt_all[mb], γt=γt_all[mb])
 # ===============================================================================================
-    
-class nnActor_Critic(nnPG):
-    
-    def step0(self):
-        self.γt = 1    
-    # ---------------------------- 🌖 online control learning ----------------------------
-    def online(self, *args):
-        s, a, rn, sn, done = self.trajectory(-1)
-        
-        Vn, *_ = self.wϴ(sn)
-        Vn = Vn.squeeze(-1).detach() 
-        Vn[done] = 0
-        
-        Gt = self.γ * Vn + rn.squeeze(-1) 
-
-        self.wϴ.fit(s, a, Gt,  γt=self.γt)
-        self.γt *= self.γ  
-# ===============================================================================================
-class nnActor_Critic_nSteps(nnPG):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.rndbatch = False
-        self.endbatch = 0
-        self.nbuffer  = self.nbatch
-
-    def step0(self):
-        self.buffer.clear()
-        
-     # ---------------------------- 🌖 online control learning ----------------------------
-    def online(self, *args):
-        if len(self.buffer) < self.nbatch: return # ensures that collect enough rollout consecutive samples
-        self._update()
-    
-    # ---------------------------- 🌘 offline control learning ----------------------------
-    def offline(self):
-        if len(self.buffer) == 0: return # ensures to process remaining samples of the episode, important for sparse rewards
-        self._update()
-
-     # ---------------------------- 🌖 update for both online and remainder offline🌘 ------
-    def _update(self):
-        n = len(self.buffer)
-        (s, a, rn, sn, dones), _ = self.batch(nbatch=n, endbatch=0)
-        
-        Vn, *_ = self.wϴ(sn[-1].unsqueeze(0))
-        Vn     = Vn.squeeze().detach()
-        Gt     = Vn * (1 - dones[-1].float())
-        
-        returns = []
-        for r, d in zip(reversed(rn.squeeze(-1)), reversed(dones)):
-            Gt = r + self.γ * Gt * (1 - d.float())
-            returns.insert(0, Gt)
-        Gt = torch.stack(returns)
-        
-        self.wϴ.fit(s, a, Gt)
-        self.buffer.clear()        # discard rollout — on-policy, must not reuse
-
-# ===============================================================================================
-class nnREINFORCE(nnPG):
-
-    def init(self):
-        self.nbuffer = self.max_t
-
-    def step0(self):
-        self.buffer.clear()
-
-    # ---------------------------- 🌘 offline, MC policy learning: end-of-episode learning ----------------------------
-    def offline(self):
-        Gt = 0
-        γt = self.γ ** self.t
-
-        for t in range(self.t, -1, -1):
-            s, a, rn, sn, done = self.trajectory(t=t)
-
-            Gt = self.γ * Gt + rn.squeeze(-1)
-            self.wϴ.fit(s, a, Gt, γt=γt)
-
-            γt /= self.γ if self.γ != 0 else 1
 
 # ===============================================================================================
 class nnActor_Critic(nnPG):
@@ -633,6 +556,7 @@ class nnActor_Critic(nnPG):
 
         self.wϴ.fit(s, a, Gt,  γt=self.γt)
         self.γt *= self.γ  
+
 # ===============================================================================================        
 def AC(base=nnPG, name='nnActor_Critic'):
     class nnActor_Critic_(base):
@@ -655,10 +579,8 @@ def AC(base=nnPG, name='nnActor_Critic'):
     
     return nnActor_Critic_
 
-# ===============================================================================================
-# nnActor_Critic   = AC(nnPG,  'nnActor_Critic')     # discrete  — softmax already defined above
+# nnActor_Critic   = AC(nnPG,  'nnActor_Critic')     # discrete  — softmax already defined above, above kept for reference
 nnActor_c_Critic = AC(nnPGc, 'nnActor_c_Critic')   # continuous — Gaussian
-
 # ===============================================================================================
 class nnActor_Critic_nSteps(nnPG):
     def __init__(self, **kw):
@@ -697,7 +619,6 @@ class nnActor_Critic_nSteps(nnPG):
         
         self.wϴ.fit(s, a, Gt)
         self.buffer.clear()        # discard rollout — on-policy, must not reuse
-
 # ===============================================================================================
 
 class nnPPO(nnActor_Critic_nSteps):
