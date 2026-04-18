@@ -213,7 +213,7 @@ class nnPGc(PG(nnMDP)):
         self.dσ   = dσ
         self.Tσ   = Tσ
         self.σmin = σmin
-        # we pass σ via creatmodel for Gaussian: model wϴ does not learns wϴ (passed by user)
+        
         self.wϴ = self.create_model(net_str='wϴ',  model_class=ac_model_class) # continuous actions
         self.policy = self.Gaussian
 
@@ -240,7 +240,7 @@ class nnPGc(PG(nnMDP)):
         if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ))
         _, μ, σ = self.wϴ.predict(s, self.state_dim)
         μ = μ.detach().numpy()
-        σ = σ.detach().numpy()
+        σ = σ.detach().numpy() if  isinstance(s, torch.Tensor)  else σ
         a = np.random.normal(μ, σ) # todo: use Normal from torch for better integraiton
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)
         return np.atleast_1d(a)
