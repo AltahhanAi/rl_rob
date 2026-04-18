@@ -258,7 +258,7 @@ class nnACSharedModel(nnSplitModel):
         return V, F.softmax(logits / self.τ, dim=-1)    
 
     # useful for inheritence
-    def Vπ(self, s, a):
+    def Vπ(self, s):
         V, π = self(s)
         return V.squeeze(-1), π 
     
@@ -274,7 +274,7 @@ class nnACSharedModel(nnSplitModel):
         self.train()
         self.optim.zero_grad()
         
-        V, π = self.Vπ(s, a)
+        V, π = self.Vπ(s)
         logπ = self.logπ(π, a)
         πlogπ = self.entropy(π)
         
@@ -381,9 +381,9 @@ class nnACcSharedModel(nnACSharedModel):
         return V, μ
         
     # overriding for neccessity
-    def Vπ(self, s, a):
-        (V, μ ), σ = self(s), self.σ
-        return V, self.π(μ, σ)
+    def Vπ(self, s):
+        V, μ = self(s)
+        return V, self.π(μ, self.σ)
 
     def logπ(self, π):
         return π.log_prob(a).sum(dim=-1)
