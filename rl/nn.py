@@ -274,7 +274,7 @@ class nnACSharedModel(nnSplitModel):
         self.train()
         self.optim.zero_grad()
         
-        V, π = self.logπ(s, a)
+        V, π = self.Vπ(s, a)
         logπ = self.logπ(π)
         πlogπ = sel.entropy(π)
         
