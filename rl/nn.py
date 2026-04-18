@@ -304,7 +304,7 @@ class nnACSharedModel(nnSplitModel):
         # entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         
         critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V) if exact else .5 * F.mse_loss(V, Gt)
-        actor_loss   = -(δ*logπ * γt).mean()    
+        actor_loss   = -(A*logπ * γt).mean()    
         entropy_loss = -self.entropy(π).mean()
         
         loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
