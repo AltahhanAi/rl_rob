@@ -83,25 +83,6 @@ class nnMRP(MRP):
         if self.model_summary: model.print_model_summary(net_str)
         return model
         
-    # def create_model(self, net_str, model_class):
-    #     self.state_dim  = self.env.reset().shape
-    #     self.action_dim = 1 if net_str == 'V' else self.env.nA
-    #     model = model_class(
-    #         inp_dim=self.state_dim, trunk=self.trunk,
-    #         nF=self.nF, out_dim=self.action_dim,
-    #         α=self.α, αv=getattr(self, 'αv', None), αq=getattr(self, 'αq', None), 
-    #         net_str=net_str, final_bias=self.final_bias
-    #     )
-    #     if self.model_summary: model.print_model_summary(net_str)
-    #     return model
-
-    # def V(self, s=None):
-    #     result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
-    #     return result.detach().numpy()
-
-    # def V(self, s=None):
-    #     result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
-    #     return result.detach().numpy().squeeze(-1)  # (nS,1) → (nS,)
 
     def V(self, s=None):
         result = self.w.predict(s if s is not None else self.env.S_(), self.state_dim)
@@ -223,7 +204,6 @@ class nnPG(PG(nnMDP)):
         a = choices(range(self.env.nA), weights=π, k=1)[0]
         return a
         # return np.random.choice(self.env.nA, p=π)
-        
         
 # ===============================================================================================
 class nnPGc(PG(nnMDP)):
@@ -434,21 +414,6 @@ class DQN(nnMDP):
             self.Wn.set_weights(self.W, 'Q', self.t_)
 
 
-
-# class DQN(nnMDP):
-#     # ----------------------------- 🌖 online learning ---------------------- 
-#     def online(self, *args):
-#         if len(self.buffer) < self.nbatch: return
-#         (s, a, rn, sn, dones), inds = self.batch()
-#         Qs  = self.W(s)
-#         Qn  = self.Wn(sn).detach() if self.create_Wn and self.ep > 2 else self.W(sn).detach()
-#         Qn[dones] = 0
-#         targets = Qs.clone().detach()
-#         targets[inds, a] = self.γ * Qn.max(1).values + rn
-#         loss = self.W.fit(Qs, targets)
-#         if self.t_Qn and self.t_ % self.t_Qn == 0 and self.create_Wn:
-#             self.Wn.set_weights(self.W, 'Q', self.t_)
-
 # ===============================================================================================
 class DDQN(DQN):
     # ----------------------------- 🌖 online learning ---------------------- 
@@ -628,136 +593,149 @@ class nnActor_Critic_nSteps(nnPG):
         
         self.wϴ.fit(s, a, Gt)
         self.buffer.clear()        # discard rollout — on-policy, must not reuse
-        
+
 # ===============================================================================================
-def AC(base=nnPG):
+class nnREINFORCE(nnPG):
+
+    def init(self):
+        self.nbuffer = self.max_t
+
+    def step0(self):
+        self.buffer.clear()
+
+    # ---------------------------- 🌘 offline, MC policy learning: end-of-episode learning ----------------------------
+    def offline(self):
+        Gt = 0
+        γt = self.γ ** self.t
+
+        for t in range(self.t, -1, -1):
+            s, a, rn, sn, done = self.trajectory(t=t)
+
+            Gt = self.γ * Gt + rn.squeeze(-1)
+            self.wϴ.fit(s, a, Gt, γt=γt)
+
+            γt /= self.γ if self.γ != 0 else 1
+
+# ===============================================================================================
+class nnActor_Critic(nnPG):
+    
+    def step0(self):
+        self.γt = 1    
+    # ---------------------------- 🌖 online control learning ----------------------------
+    def online(self, *args):
+        s, a, rn, sn, done = self.trajectory(-1)
+        
+        Vn, *_ = self.wϴ(sn)
+        Vn = Vn.squeeze(-1).detach() 
+        Vn[done] = 0
+        
+        Gt = self.γ * Vn + rn.squeeze(-1) 
+
+        self.wϴ.fit(s, a, Gt,  γt=self.γt)
+        self.γt *= self.γ  
+# ===============================================================================================        
+def AC(base=nnPG, name='nnActor_Critic'):
     class nnActor_Critic_(base):
         def step0(self):
             self.γt = 1
-
+         # ---------------------------- 🌖 online control learning ----------------------------
         def online(self, *args):
             s, a, rn, sn, done = self.trajectory(-1)
-
             Vn, *_ = self.wϴ(sn)
             Vn = Vn.squeeze(-1).detach()
+            
             Vn[done] = 0
-
             Gt = self.γ * Vn + rn.squeeze(-1)
+            
             self.wϴ.fit(s, a, Gt, γt=self.γt)
             self.γt *= self.γ
-
-    nnActor_Critic_.__name__ = f'nnActor_Critic'
+            
+    nnActor_Critic_.__name__     = name
+    nnActor_Critic_.__qualname__ = name # for pickle to work
+    
     return nnActor_Critic_
 
 # ===============================================================================================
-nnActor_Critic  = AC(nnPG)    # discrete  — softmax
-nnActor_c_Critic = AC(nnPGc)   # continuous — Gaussian
+# nnActor_Critic   = AC(nnPG,  'nnActor_Critic')     # discrete  — softmax already defined above
+nnActor_c_Critic = AC(nnPGc, 'nnActor_c_Critic')   # continuous — Gaussian
 
-# # ===============================================================================================
-# '''
-# nnRollout replaces the replay buffer with a rollout buffer for on-policy methods.
-# It collects full trajectories, computes GAE advantages, and supports multiple epochs
-# over the same rollout.
-# '''
-# class nnPGcrollout(nnPGc):
-#     def __init__(self, nsteps=128, epochs=4, λ=0.95, **kw):
-#         super().__init__(create_w=False, **kw)
-#         self.nsteps = nsteps
-#         self.epochs = epochs
-#         self.λ      = λ
-#         self.s    = []
-#         self.a    = []
-#         self.rn   = []
-#         self.done = []
-#         self.logπ = []
-#         self.Vb   = []
+# ===============================================================================================
+class nnActor_Critic_nSteps(nnPG):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.rndbatch = False
+        self.endbatch = 0
+        self.nbuffer  = self.nbatch
 
-#     def store_(self, s=None, a=None, rn=None, sn=None, an=None, done=None, t=0):
-#         s_t  = torch.tensor(s, dtype=torch.float32).unsqueeze(0)
-#         a_t  = torch.tensor(a, dtype=torch.float32)
-#         with torch.no_grad():
-#             V, μ, σ = self.wϴ(s_t)
-#             logπ    = Normal(μ, σ).log_prob(a_t).sum().item()
-#         self.s.append(s)
-#         self.a.append(a)
-#         self.rn.append(rn)
-#         self.done.append(done)
-#         self.logπ.append(logπ)
-#         self.Vb.append(V.item())
+    def step0(self):
+        self.buffer.clear()
+        
+     # ---------------------------- 🌖 online control learning ----------------------------
+    def online(self, *args):
+        if len(self.buffer) < self.nbatch: return # ensures that collect enough rollout consecutive samples
+        self._update()
+    
+    # ---------------------------- 🌘 offline control learning ----------------------------
+    def offline(self):
+        if len(self.buffer) == 0: return # ensures to process remaining samples of the episode, important for sparse rewards
+        self._update()
 
-#     def GAE(self, sn_last, done_last):
-#         γ = self.γ
-#         with torch.no_grad():
-#             Vn_last, _, _ = self.wϴ(torch.tensor(sn_last, dtype=torch.float32).unsqueeze(0))
-#             Vn_last = 0 if done_last else Vn_last.item()
-#         As = []
-#         Gt = []
-#         A  = 0
-#         Vn = Vn_last
-#         for rn, V, done in zip(reversed(self.rn), reversed(self.Vb), reversed(self.done)):
-#             δ  = rn + γ * Vn * (1 - done) - V
-#             A  = δ + γ * self.λ * A * (1 - done)
-#             As.insert(0, A)
-#             Gt.insert(0, A + V)
-#             Vn = V
-#         return torch.tensor(As, dtype=torch.float32), torch.tensor(Gt, dtype=torch.float32)
+     # ---------------------------- 🌖 update for both online and remainder offline🌘 ------
+    def _update(self):
+        n = len(self.buffer)
+        (s, a, rn, sn, dones), _ = self.batch(nbatch=n, endbatch=0)
+        
+        Vn, *_ = self.wϴ(sn[-1].unsqueeze(0))
+        Vn     = Vn.squeeze().detach()
+        Gt     = Vn * (1 - dones[-1].float())
+        
+        returns = []
+        for r, d in zip(reversed(rn.squeeze(-1)), reversed(dones)):
+            Gt = r + self.γ * Gt * (1 - d.float())
+            returns.insert(0, Gt)
+        Gt = torch.stack(returns)
+        
+        self.wϴ.fit(s, a, Gt)
+        self.buffer.clear()        # discard rollout — on-policy, must not reuse
 
-#     def rollout_batch(self):
-#         s        = torch.tensor(np.array(self.s),  dtype=torch.float32)
-#         a        = torch.tensor(np.array(self.a),  dtype=torch.float32)
-#         logπ_old = torch.tensor(self.logπ,         dtype=torch.float32)
-#         return s, a, logπ_old
+# ===============================================================================================
 
-#     def clear_rollout(self):
-#         self.s    = []
-#         self.a    = []
-#         self.rn   = []
-#         self.done = []
-#         self.logπ = []
-#         self.Vb   = []
+class nnPPO(nnActor_Critic_nSteps):
+    def __init__(self, ε_clip=0.2, epochs=4, λ=0.95, norm_adv=False, **kw):
+        super().__init__(ac_model_class=nnACEpochModel, **kw)
+        self.ε_clip   = ε_clip
+        self.epochs   = epochs
+        self.λ        = λ
+        self.norm_adv = norm_adv
 
-# # ===============================================================================================
-# '''
-# PPO — Proximal Policy Optimisation.
-# Inherits Gaussian policy and ϴ network from nnPGc, rollout buffer and GAE from nnRollout.
-# The student only needs to see this class.
-# '''
-# class PPO(nnPGcrollout):
-#     def __init__(self, ε_clip=0.2, **kw):
-#         super().__init__(**kw)
-#         self.ε_clip = ε_clip
+    def _update(self):
+        n = len(self.buffer)
+        if n < 2: self.buffer.clear(); return
+        (s, a, rn, sn, dones), _ = self.batch(nbatch=n, endbatch=0)
+        a = a.to(torch.int64)
 
-#     def online(self, s, a, rn, sn, an, done, t):
-#         if len(self.s) < self.nsteps: return
-#         As_, Gt_          = self.GAE(sn, done)
-#         s_, a_, logπ_old_ = self.rollout_batch()
-#         As_ = (As_ - As_.mean()) / (As_.std() + 1e-8)         # normalise advantages
-#         ε   = self.ε_clip
-#         for _ in range(self.epochs):
-#             self.wϴ.train()
-#             idx = torch.randperm(self.nsteps)
-#             for start in range(0, self.nsteps, self.nbatch):
-#                 mb                     = idx[start:start + self.nbatch]
-#                 s, a, logπ_old, As, Gt = s_[mb], a_[mb], logπ_old_[mb], As_[mb], Gt_[mb]
-#                 self.wϴ.optim.zero_grad()
-#                 V, μ, σ  = self.wϴ(s) ; V = V.squeeze(1)
-#                 p         = Normal(μ, σ)
-#                 logπ      = p.log_prob(a).sum(dim=-1)
-#                 r         = (logπ - logπ_old).exp()            # π_new / π_old
-#                 L_actor   = torch.min(r * As, torch.clamp(r, 1-ε, 1+ε) * As).mean()
-#                 L_critic  = 0.5  * F.mse_loss(V, Gt)
-#                 L_entropy = 0.01 * p.entropy().mean()
-#                 loss      = -(L_actor - L_critic + L_entropy)
-#                 loss.backward()
-#                 clip_grad_norm_(self.wϴ.parameters(), max_norm=0.5)
-#                 self.wϴ.optim.step()
-#         self.clear_rollout()
+        self.wϴ.eval()
+        with torch.no_grad():
+            V_old, π_old = self.wϴ(s)
+            V_old        = V_old.squeeze(-1)
+            logπ_old     = torch.log(π_old[range(n), a] + 1e-8)
+            Vn_all, *_   = self.wϴ(sn)
+            Vn_all       = Vn_all.squeeze(-1) * (1 - dones.float())
+            A, gae       = torch.zeros(n), torch.tensor(0.0)
+            for t in reversed(range(n)):
+                δ    = rn.squeeze(-1)[t] + self.γ * Vn_all[t] - V_old[t]
+                gae  = δ + self.γ * self.λ * (1 - dones[t].float()) * gae
+                A[t] = gae
+            Gt = (A + V_old).detach()
+            if self.norm_adv and A.std() > 1e-6:
+                A = ((A - A.mean()) / (A.std() + 1e-8)).detach()
+            else:
+                A = A.detach()
 
-# =================================================================================================
-# usage example
-# ppo = PPO(env=env, α=3e-4, γ=0.99, seed=1, episodes=1000, **demoGame,
-#           trunk=[(8,4,2),(4,4,4)], nF=64,
-#           nsteps=128, epochs=4, λ=0.95,
-#           ε_clip=0.2,
-#           v0=0, final_bias=True,
-#           file_name='PPO_exp').interact()
+        epochs  = self.epochs if n == self.nbatch else 1
+        mb_size = min(self.nbatch, n)
+
+        self.wϴ.train()
+        self.wϴ.fit(s, a, A, Gt, logπ_old, epochs, mb_size, self.ε_clip) # nnACEpochModel.fit
+        self.buffer.clear()
+# ===============================================================================================
