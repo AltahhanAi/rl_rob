@@ -307,7 +307,7 @@ class nnACSharedModel(nnSplitModel):
         actor_loss   = -(A*logπ * γt).mean()    
         entropy_loss = -self.entropy(π).mean()
         
-        loss = actor_loss + critic_loss - self.β_entropy * entropy_loss
+        loss = actor_loss + critic_loss + self.β_entropy * entropy_loss
         loss.backward()
         
         # clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
