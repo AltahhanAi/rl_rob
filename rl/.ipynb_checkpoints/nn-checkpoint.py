@@ -276,7 +276,7 @@ class nnACSharedModel(nnSplitModel):
         
         V, π = self.Vπ(s, a)
         logπ = self.logπ(π, a)
-        πlogπ = sel.entropy(π)
+        πlogπ = self.entropy(π)
         
         Gt =  Gt.squeeze(-1) if Gt.ndim > 1 else Gt
         δ = (Gt - V).detach()
