@@ -262,7 +262,7 @@ class nnACSharedModel(nnSplitModel):
         V, π = self(s)
         return V.squeeze(-1), π 
     
-    def logπ(self, π):
+    def logπ(self, π, a):
         return torch.log(π[range(len(a)), a])
         
     def entropy(self, π):
@@ -275,7 +275,7 @@ class nnACSharedModel(nnSplitModel):
         self.optim.zero_grad()
         
         V, π = self.Vπ(s, a)
-        logπ = self.logπ(π)
+        logπ = self.logπ(π, a)
         πlogπ = sel.entropy(π)
         
         Gt =  Gt.squeeze(-1) if Gt.ndim > 1 else Gt
@@ -391,7 +391,7 @@ class nnACcSharedModel(nnACSharedModel):
     def π(self, s, a):
         dist = Normal(μ, σ)
         
-    def logπ(self, π):
+    def logπ(self, π, a=None):
         return π.entropy()
         
     def predict(self, s, state_dim):
