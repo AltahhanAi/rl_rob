@@ -269,20 +269,7 @@ class nnACSharedModel(nnSplitModel):
         self.αv = αv
         self.αq = αq
         self.αt = αt if αt is not None else αv    # trunk lr defaults to critic lr
-        self.τ  = τ        
-        
-    # def __init__(self, out_dim, αv, αq,  τ=1.0, β_entropy=0.01, **kw):
-    #     super().__init__( head1_dim=1, head2_dim=out_dim, **kw)
-    #     trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]  # 🔴 fix: slice of ModuleList is a plain list
-    #     self.β_entropy = β_entropy
-    #     self.optim = optim.Adam([
-    #         {'params': trunk_params + list(self.head1.parameters()), 'lr': αv},
-    #         {'params': list(self.head2.parameters()),  'lr': αq}
-    #     ])
-    #     self.τ = τ  
-    # def forward(self, x):
-    #     V, logits = super().forward(x)
-    #     return V, F.softmax(logits, dim=-1)
+        self.τ  = τ 
     
     def forward(self, x):
         V, logits = super().forward(x)
@@ -307,16 +294,18 @@ class nnACSharedModel(nnSplitModel):
         A  = (Gt - V).detach()
         
         # critic_loss   = 0.5 * F.mse_loss(V, Gt)
-        if exact: 
-            critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
+        # if exact: 
+        #     critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V)
        
-        else:     
-            critic_loss = 0.5 * F.mse_loss(V, Gt) 
+        # else:     
+        #     critic_loss = 0.5 * F.mse_loss(V, Gt) 
             
-        actor_loss    = -(log_prob * A * γt).mean() * self.τ               # τ scales the policy gradient
-        entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
+        # actor_loss    = -(log_prob * A * γt).mean() * self.τ               # τ scales the policy gradient
+        # entropy_bonus = self.entropy(π) * self.τ                           # τ scales entropy bonus consistently
         
- 
+        critic_loss = .5 * F.mse_loss(V, Gt, reduction='sum') / len(V) if exact else .5 * F.mse_loss(V, Gt)
+        actor_loss   = -(δ*logπ * γt).mean()    
+        entropy_loss = -self.entropy(π).mean()
         
         loss = actor_loss + critic_loss - self.β_entropy * entropy_bonus
         loss.backward()
@@ -346,35 +335,6 @@ class nnACSharedModel(nnSplitModel):
             if s_batch: return V, π
             return V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
             
-    
-    # def predict(self, s, state_dim, deterministic=False):
-    #     if not isinstance(s, torch.Tensor):
-    #         s = torch.tensor(s, dtype=torch.float32)
-    #     s_batch = s.ndim > len(state_dim)
-    #     if not s_batch: s = s.unsqueeze(0)
-    #     self.eval()
-    #     with torch.no_grad():
-    #         V, π = self(s)
-    #         V = V.squeeze(-1)
-    #         a = π.argmax(dim=-1) if deterministic else torch.multinomial(π, 1).squeeze(-1)
- 
-    #         return V, π
-
-    # def fit(self, s, a, Gt):
-    #     self.train()
-    #     self.optim.zero_grad()
-    #     V, log_prob, π = self.logπ(s, a)                              # 🟢 fix: renamed logπ -> log_prob to avoid shadowing method
-    #     V  = V.squeeze(-1)                                             # (B,)
-    #     Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt                    # 🟡 fix: ensure (B,) to prevent silent (B,B) broadcast in mse_loss
-    #     A  = (Gt - V).detach()
-    #     critic_loss   = 0.5 * F.mse_loss(V, Gt)
-    #     actor_loss    = -(log_prob * A).mean()
-    #     entropy_bonus = self.entropy(π)
-    #     loss = actor_loss + critic_loss - 0.01 * entropy_bonus
-    #     loss.backward()
-    #     clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN else None
-    #     self.optim.step()
-    #     return loss.item()
 # ===============================================================================================
 
 class nnACEpochModel(nnACSharedModel):
