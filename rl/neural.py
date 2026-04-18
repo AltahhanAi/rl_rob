@@ -633,15 +633,13 @@ class nnPPO(nnActor_Critic_nSteps):
         n = len(self.buffer)
         if n < 2: self.buffer.clear(); return
         (s, a, rn, sn, dones), _ = self.batch(nbatch=n, endbatch=0)
-        a = a.to(torch.int64)
-
+        
         self.wϴ.eval()
         with torch.no_grad():
-            V_old, π_old = self.wϴ(s)
-            V_old        = V_old.squeeze(-1)
-            logπ_old     = torch.log(π_old[range(n), a] + 1e-8)
-            Vn_all, *_   = self.wϴ(sn)
-            Vn_all       = Vn_all.squeeze(-1) * (1 - dones.float())
+            V_old, π_old = self.wϴ.Vπ(s)
+            logπ_old     = self.wϴ.logπ(π_old, a)
+            Vn_all, _    = self.wϴ.Vπ(sn)
+            Vn_all       = Vn_all * (1 - dones.float())            
             A, gae       = torch.zeros(n), torch.tensor(0.0)
             for t in reversed(range(n)):
                 δ    = rn.squeeze(-1)[t] + self.γ * Vn_all[t] - V_old[t]
@@ -659,4 +657,76 @@ class nnPPO(nnActor_Critic_nSteps):
         self.wϴ.train()
         self.wϴ.fit(s, a, A, Gt, logπ_old, epochs, mb_size, self.ε_clip) # nnACEpochModel.fit
         self.buffer.clear()
+# ============================================================================================
+'''
+A tidy implementation for PPO with class factory, the abov eis left for the discrete case, both eqiv
+'''
+def PPO(base=nnPG, model=nnACEpochModel, name='nnPPO'):
+    class nnPPO_(base):
+        def __init__(self, ε_clip=0.2, epochs=4, λ=0.95, **kw):
+            super().__init__(ac_model_class=model, **kw)
+            self.ε_clip = ε_clip
+            self.epochs = epochs
+            self.λ      = λ
+
+            self.rndbatch = False
+            self.endbatch = 0
+            self.nbuffer  = self.nbatch
+
+        def step0(self):
+            self.buffer.clear()
+
+        # ---------------------------- 🌖 online control learning ----------------------------
+        def online(self, *args):
+            if len(self.buffer) < self.nbatch: return   # wait for a full rollout
+            self._update()
+
+        # ---------------------------- 🌘 offline: flush remainder at episode end ------------
+        def offline(self):
+            if len(self.buffer) == 0: return
+            self._update()
+
+        # ---------------------------- 🌗 GAE: generalised advantage estimation --------------
+        def GAE(self, rn, Vo, Vn, dones):
+            """Generalised Advantage Estimation.   A_t = δ_t + γλ(1 - d_t)·A_{t+1}"""
+            n      = len(rn)
+            A, gae = torch.zeros(n), torch.tensor(0.0)
+            for t in reversed(range(n)):
+                δ    = rn[t] + self.γ * Vn[t] - Vo[t]
+                gae  = δ + self.γ * self.λ * (1 - dones[t].float()) * gae
+                A[t] = gae
+            return A
+
+        # ---------------------------- 🌖 PPO update: GAE + clipped epochs -------------------
+        def _update(self):
+            n = len(self.buffer)
+            if n < 2: self.buffer.clear(); return
+            (s, a, rn, sn, dones), _ = self.batch(nbatch=n, endbatch=0)
+            rn = rn.squeeze(-1)
+
+            self.wϴ.eval()
+            with torch.no_grad():
+                Vo, πo    = self.wϴ.Vπ(s)
+                logπo     = self.wϴ.logπ(πo, a)
+                Vn, _     = self.wϴ.Vπ(sn)
+                Vn        = Vn * (1 - dones.float())
+
+                A  = self.GAE(rn, Vo, Vn, dones)
+                Gt = (A + Vo).detach()
+                A  = ((A - A.mean()) / (A.std() + 1e-8)).detach()
+
+            epochs  = self.epochs if n == self.nbatch else 1
+            mb_size = min(self.nbatch, n)
+
+            self.wϴ.train()
+            self.wϴ.fit(s, a, A, Gt, logπo, epochs, mb_size, self.ε_clip)
+            self.buffer.clear()        # discard rollout — on-policy, must not reuse
+
+    nnPPO_.__name__     = name
+    nnPPO_.__qualname__ = name         # for pickle
+    return nnPPO_
+
+
+# nnPPO   = PPO(nnPG,  nnACEpochModel,   'nnPPO')      # discrete   — softmax
+nnPPO_c = PPO(nnPGc, nnACEpochModel_c, 'nnPPO_c')    # continuous — Gaussian
 # ===============================================================================================

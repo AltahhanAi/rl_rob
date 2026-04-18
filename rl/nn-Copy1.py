@@ -242,61 +242,50 @@ class nnDuelModel(nnSplitModel):
         V, Q = super().forward(x)
         return V + Q - Q.mean(dim=1, keepdim=True)
 
-# ================================= Vanilla Actor-Critic =======================================
+# ===============================================================================================
 class nnACSharedModel(nnSplitModel):
     def __init__(self, out_dim, αv, αq, αt=None, τ=1.0, β_entropy=0.01, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
+        
         self.β_entropy = β_entropy
-        self.αv, self.αq = αv, αq
-        self.αt = αt if αt is not None else αv
-        self.τ  = τ
-
+        self.αv = αv
+        self.αq = αq
+        self.αt = αt if αt is not None else αv    # trunk lr defaults to critic lr
+        self.τ  = τ 
+    
     def forward(self, x):
         V, logits = super().forward(x)
-        return V, F.softmax(logits / self.τ, dim=-1)
+        return V, F.softmax(logits / self.τ, dim=-1)    
 
+    # useful for inheritence
     def Vπ(self, s):
         V, π = self(s)
-        return V.squeeze(-1), π
+        return V.squeeze(-1), π 
     
     def logπ(self, π, a):
-        return torch.log(π[range(len(a)), a] + 1e-8)
-
+        return torch.log(π[range(len(a)), a])
+        
     def entropy(self, π):
         return -(π * torch.log(π + 1e-8)).sum(dim=-1)
 
-    # ---------- the three update signals (mirror the classical AC algorithm) ----------
-    def Δlogπ(self, A, logπ, γt=1.0, **kw):
-        """Actor signal — vanilla PG surrogate:  A · log π · γ^t  → maximise."""
-        return (logπ * A * γt).mean()
-
-    def ΔV(self, V, Gt, exact=True):
-        """Critic signal — .5 · (Gt − V)²  → minimise."""
-        return 0.5 * F.mse_loss(V, Gt, reduction='sum') / len(V) if exact else 0.5 * F.mse_loss(V, Gt)
-
-    def ΔH(self, H):
-        """Entropy signal — H(π)  → maximise."""
-        return H.mean()
-    # ----------------------------------------------------------------------------------
-
-    def fit(self, s, a, Gt, A=None, γt=1.0, exact=True, **kw):
+    def fit(self, s, a, Gt, γt=1.0, exact=True):
         a = a.to(torch.int64) if not torch.is_floating_point(a) else a
+
         self.train()
-
-        V, π  = self.Vπ(s)
-        logπ  = self.logπ(π, a)
-        H     = self.entropy(π)
-
-        Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
-        if A is None: A = (Gt - V).detach()
-
-        L_actor  = self.Δlogπ(A, logπ, γt=γt, **kw)
-        L_critic = self.ΔV(V, Gt, exact=exact)
-        L_ent    = self.ΔH(H)
-
-        loss = -L_actor + L_critic - self.β_entropy * L_ent
-
         self.optim.zero_grad()
+        
+        V, π = self.Vπ(s)
+        logπ = self.logπ(π, a)
+        πlogπ = self.entropy(π)
+        
+        Gt =  Gt.squeeze(-1) if Gt.ndim > 1 else Gt
+        δ = (Gt - V).detach()
+                
+        critic_loss  =   .5 * F.mse_loss(V, Gt, reduction='sum') / len(V) if exact else .5 * F.mse_loss(V, Gt) # minimises δ
+        actor_loss   = -(logπ*δ*γt).mean()    # maximises π objective δ*logπ*γ^t
+        entropy_loss =  -πlogπ.mean()         # maximises entropy
+        
+        loss = critic_loss + actor_loss +  self.β_entropy * entropy_loss
         loss.backward()
         self.clip_grads()
         self.optim.step()
@@ -309,61 +298,134 @@ class nnACSharedModel(nnSplitModel):
         self.eval()
         with torch.no_grad():
             V, π = self(s)
-            if s_batch: return V, π
-            else:       return V.squeeze(0), π.squeeze(0)
+            if s_batch: return V, π 
+            else:       return V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
+    
+    def clip_grads(self):
+        """Clip gradients per parameter group (trunk / critic head / actor head).
+        No-op unless CNN mode with clipping enabled."""
+        if not (self.CNN and self.clipCNN): return
+        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+        clip_grad_norm_(trunk_params,            max_norm=1.0)  # trunk
+        clip_grad_norm_(self.head1.parameters(), max_norm=0.5)  # critic head: tighter
+        clip_grad_norm_(self.head2.parameters(), max_norm=1.0)  # actor head:  full budget
+            
+# class nnACEpochModel(nnACSharedModel):
+    
+#     def fit(self, s, a, A, Gt, logπ_old, epochs, mb_size, ε_clip):
+#         a  = a.to(torch.int64)
+#         Gt = Gt.detach()
+#         for _ in range(epochs):
+#             idx = torch.randperm(len(s))
+#             for start in range(0, len(s), mb_size):
+#                 mb         = idx[start:start + mb_size]
+#                 V_mb, π_mb = self(s[mb])
+#                 V_mb       = V_mb.squeeze(-1)
+#                 logπ_mb    = torch.log(π_mb[range(len(mb)), a[mb]] + 1e-8)
+#                 r          = (logπ_mb - logπ_old[mb]).exp()
+#                 L_clip     = torch.min(r * A[mb], torch.clamp(r, 1-ε_clip, 1+ε_clip) * A[mb]).mean()
+#                 L_critic   = 0.5 * F.mse_loss(V_mb, Gt[mb])
+#                 L_entropy  = self.entropy(π_mb) * self.τ
+#                 loss       = -L_clip + L_critic - self.β_entropy * L_entropy
+#                 self.optim.zero_grad()
+#                 loss.backward()
+#                 if self.CNN and self.clipCNN:
+#                     trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+#                     clip_grad_norm_(trunk_params,            max_norm=1.0)
+#                     clip_grad_norm_(self.head1.parameters(), max_norm=0.5)
+#                     clip_grad_norm_(self.head2.parameters(), max_norm=1.0)
+#                 self.optim.step()
+# ===============================================================================================
 
-# ================================= Continuous (Gaussian) AC ==================================
+# class nnACcSharedModel(nnACSharedModel):
+#     def __init__(self, out_dim, **kw):
+#         super().__init__(out_dim=out_dim, **kw)
+#         feat_in     = self.head2.in_features
+#         self.μ_head = self.head2
+#         self.σ_head = nn.Linear(feat_in, out_dim, bias=self.final_bias)
+
+#     def forward(self, x):
+#         V, μ = nnSplitModel.forward(self, x)
+#         σ    = F.softplus(self.σ_head(self._trunk_out)) + 1e-6
+#         return V, μ, σ
+
+#     def logπ(self, s, a):
+#         V, μ, σ = self(s)
+#         dist = Normal(μ, σ)
+#         return V, dist.log_prob(a).sum(dim=-1), dist
+
+#     def entropy(self, dist):
+#         return dist.entropy().mean()
+
+#     def predict(self, s, state_dim, deterministic=False):
+#         if not isinstance(s, torch.Tensor):
+#             s = torch.tensor(s, dtype=torch.float32)
+#         s_batch = s.ndim > len(state_dim)
+#         if not s_batch: s = s.unsqueeze(0)
+#         self.eval()
+#         with torch.no_grad():
+#             V, μ, σ = self(s)
+#             if s_batch: return V, μ, σ
+#             return V.squeeze(0), π.squeeze(0), σ
+
 class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, σ=1, **kw):
         super().__init__(out_dim=out_dim, **kw)
         self.μ_head = self.head2
-        self.σ = σ    # no σ_head — σ is passed from nnPGc
-
+        self.σ = σ    # no σ_head σ is passed from nnPGc
+    
+    # overriding for readability
     def forward(self, x):
         V, μ = nnSplitModel.forward(self, x)
         return V, μ
-
+        
+    # overriding for neccessity
     def Vπ(self, s):
         V, μ = self(s)
         return V.squeeze(-1), self.π(μ, self.σ)
 
-    def π(self, μ, σ):
-        return Normal(μ, σ)
-
     def logπ(self, π, a):
         return π.log_prob(a).sum(dim=-1)
-
+    
+    def π(self, μ, σ):
+        return Normal(μ, σ)
+        
     def entropy(self, π, a=None):
         return π.entropy()
-
+        
     def predict(self, s, state_dim):
         V, μ = super().predict(s, state_dim)
         return V, μ, self.σ
+    
 
-# ================================= PPO — only Δlogπ changes ==================================
+# ===============================================================================================
 def ACEpoch(base):
     class nnACEpochModel_(base):
-
-        def Δlogπ(self, A, logπ, logπ_old=None, ε_clip=None, γt=1.0, **kw):
-            """Actor signal — clipped PPO surrogate."""
-            r = (logπ - logπ_old).exp()
-            return torch.min(r * A * γt, torch.clamp(r, 1 - ε_clip, 1 + ε_clip) * A * γt).mean()
-
-        def fit(self, s, a, A, Gt, logπ_old, epochs, mb_size, ε_clip, γt=1.0):
-            a  = a.to(torch.int64) if not torch.is_floating_point(a) else a
+        
+        def fit(self, s, a, A, Gt, logπ_old, epochs, mb_size, ε_clip):
+            a = a.to(torch.int64) if not torch.is_floating_point(a) else a
             Gt = Gt.detach()
             for _ in range(epochs):
                 idx = torch.randperm(len(s))
                 for start in range(0, len(s), mb_size):
                     mb = idx[start:start + mb_size]
-                    super().fit(s[mb], a[mb], Gt[mb], A=A[mb], γt=γt, exact=False,
-                                logπ_old=logπ_old[mb], ε_clip=ε_clip)
+                    V_mb, π_mb = self.Vπ(s[mb])
+                    logπ_mb    = self.logπ(π_mb, a[mb])
+                    H_mb       = self.entropy(π_mb)
 
+                    r        = (logπ_mb - logπ_old[mb]).exp()
+                    L_clip   = torch.min(r * A[mb], torch.clamp(r, 1-ε_clip, 1+ε_clip) * A[mb]).mean()
+                    L_critic = 0.5 * F.mse_loss(V_mb, Gt[mb])
+                    L_ent    = H_mb.mean()
+
+                    loss = -L_clip + L_critic - self.β_entropy * L_ent
+                    self.optim.zero_grad()
+                    loss.backward()
+                    self.clip_grads()
+                    self.optim.step()
     nnACEpochModel_.__name__ = f'nnACEpochModel_{base.__name__}'
     return nnACEpochModel_
 
-# instantiate AFTER both bases are defined
+# ===============================================================================================
 nnACEpochModel   = ACEpoch(nnACSharedModel)     # discrete PPO — softmax
 nnACEpochModel_c = ACEpoch(nnACcSharedModel)    # continuous PPO — Gaussian
-
-# ===============================================================================================
