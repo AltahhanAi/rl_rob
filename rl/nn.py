@@ -341,10 +341,10 @@ class nnACcSharedModel(nnACSharedModel):
 
     def logπ(self, π, a):
         return π.log_prob(a).sum(dim=-1)
-
+    
     def entropy(self, π, a=None):
-        return π.entropy()
-
+        return π.entropy().sum(-1)   # (B,) — matches discrete shape
+        
     def predict(self, s, state_dim):
         V, μ = super().predict(s, state_dim)
         return V, μ, self.σ
