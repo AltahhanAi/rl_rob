@@ -306,7 +306,8 @@ class nnACSharedModel(nnSplitModel):
         self.eval()
         with torch.no_grad():
             V, π = self(s)
-            return V, π if s_batch V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
+            if s_batch: return V, π 
+            else:       return V.squeeze(0), π.squeeze(0)   # (1,)→scalar, (1,nA)→(nA,)
             
 # ===============================================================================================
 
