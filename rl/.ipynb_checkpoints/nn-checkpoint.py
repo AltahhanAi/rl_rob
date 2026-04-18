@@ -288,7 +288,7 @@ class nnACSharedModel(nnSplitModel):
         self.train()
         self.optim.zero_grad()
         
-        V, log_prob, π = self.logπ(s, a); V  = V.squeeze(-1)
+        V, logπ, π = self.logπ(s, a); V  = V.squeeze(-1)
         
         Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
         A  = (Gt - V).detach()
