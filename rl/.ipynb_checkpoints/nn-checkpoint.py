@@ -389,7 +389,7 @@ class nnACcSharedModel(nnACSharedModel):
         return π.log_prob(a).sum(dim=-1)
     
     def π(self, μ, σ):
-        dist = Normal(μ, σ)
+        return Normal(μ, σ)
         
     def logπ(self, π, a=None):
         return π.entropy()
