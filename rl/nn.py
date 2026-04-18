@@ -391,7 +391,7 @@ class nnACcSharedModel(nnACSharedModel):
     def π(self, μ, σ):
         return Normal(μ, σ)
         
-    def logπ(self, π, a=None):
+    def entropy(self, π, a=None):
         return π.entropy()
         
     def predict(self, s, state_dim):
