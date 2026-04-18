@@ -385,7 +385,7 @@ class nnACcSharedModel(nnACSharedModel):
         V, μ = self(s)
         return V, self.π(μ, self.σ)
 
-    def logπ(self, π):
+    def logπ(self, π, a):
         return π.log_prob(a).sum(dim=-1)
     
     def π(self, μ, σ):
