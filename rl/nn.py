@@ -240,7 +240,7 @@ class nnDuelModel(nnSplitModel):
 
     def forward(self, x):
         V, Q = super().forward(x)
-        return V + Q - Q.mean(dim=1, keepdim=True))
+        return V + Q - Q.mean(dim=1, keepdim=True)
 
 # ===============================================================================================
 class nnACSharedModel(nnSplitModel):
