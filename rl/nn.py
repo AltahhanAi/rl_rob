@@ -233,6 +233,15 @@ class nnSplitModel(nnModel):
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 
+    def clip_grads(self):
+        """Clip gradients per parameter group (trunk / critic head / actor head).
+        No-op unless CNN mode with clipping enabled."""
+        if not (self.CNN and self.clipCNN): return
+        trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+        clip_grad_norm_(trunk_params,            max_norm=1.0)  # trunk
+        clip_grad_norm_(self.head1.parameters(), max_norm=0.5)  # critic head: tighter
+        clip_grad_norm_(self.head2.parameters(), max_norm=1.0)  # actor head:  full budget
+
 # ===============================================================================================
 class nnDuelModel(nnSplitModel):
     def __init__(self, out_dim, **kw):
