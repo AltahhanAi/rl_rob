@@ -114,6 +114,7 @@ class MRP:
             np.random.seed(seed)
             random.seed(seed)
             self.env.reset(seed=self.seed)  # seed once at the start
+            torch.manual_seed(self.seed)
     #-------------------------------------------buffer related-------------------------------------------------
     # The buffer gets reinitialised by reinitialising t only, but we have to be careful not to exceed t+1 at any time
     def allocate(self): 

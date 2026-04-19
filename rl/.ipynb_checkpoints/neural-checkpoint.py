@@ -63,7 +63,6 @@ class nnMRP(MRP):
         
 
     def init_(self):
-        torch.manual_seed(self.seed)
         self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(head_v0=self.v0)
         self.wn.eval() if self.create_wn else None
         self.V_ = self.V
@@ -158,7 +157,6 @@ class nnMDP(MDP(nnMRP)):
         self.Wn = self.create_model('Qn', self.model_class) if create_Wn else None
 
     def init_(self):
-        torch.manual_seed(self.seed)
         if self.create_w:
             self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(head_v0=self.v0)
         self.W.load_weights('Q') if self.load_weights_ else self.W.init_weights(head_v0=self.q0)
@@ -183,7 +181,6 @@ class nnPG(PG(nnMDP)):
         self.policy = self.softmax
 
     def init_(self):
-        torch.manual_seed(self.seed)
         self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(head1_v0=self.v0, head2_q0=self.q0)
         
         self.V_ = self.V
@@ -219,7 +216,6 @@ class nnPGc(PG(nnMDP)):
         self.policy = self.Gaussian
 
     def init_(self):
-        torch.manual_seed(self.seed)
         self.wϴ.load_weights('ϴ') if self.load_weights_ else self.wϴ.init_weights(head1_v0=self.v0, head2_q0=self.q0)
         self.V_ = self.V
         # self.Q_ = self.Q
