@@ -343,7 +343,7 @@ class nnACcSharedModel(nnACSharedModel):
         return π.log_prob(a).sum(dim=-1)
     
     def entropy(self, π, a=None):
-        return self.β_entropy * π.entropy().sum(-1) if self.β_entropy else torch.as_tensor([0]) # (B,) — matches discrete shape
+        return self.β_entropy * π.entropy().sum(-1) if self.β_entropy else torch.as_tensor([.0]) # (B,) — matches discrete shape
         
     def predict(self, s, state_dim):
         V, μ = super().predict(s, state_dim)
