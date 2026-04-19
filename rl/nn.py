@@ -326,7 +326,8 @@ class nnACcSharedModel(nnACSharedModel):
     def __init__(self, out_dim, σ=1, **kw):
         super().__init__(out_dim=out_dim, **kw)
         self.μ_head = self.head2
-        self.σ = σ    # no σ_head — σ is passed from nnPGc
+        self.σ_head = None # so σ decay in nnPGc does not affect σ_head when it exists
+        self.σ = σ         # no σ_head — σ is passed from nnPGc
 
     def forward(self, x):
         V, μ = nnSplitModel.forward(self, x)

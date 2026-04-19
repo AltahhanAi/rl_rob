@@ -239,6 +239,8 @@ class nnPGc(PG(nnMDP)):
     def Gaussian(self, s):
         if self.dσ < 1: self.σ = max(self.σmin, self.σ  * self.dσ)
         if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ))
+        if self.wϴ.σ_head is not None: self.wϴ.σ = self.σ # set σ in wϴ model only if not learned in wϴ
+        
         _, μ, σ = self.wϴ.predict(s, self.state_dim)
         μ = μ.detach().numpy()
         σ = σ.detach().numpy() if  isinstance(σ, torch.Tensor)  else σ
