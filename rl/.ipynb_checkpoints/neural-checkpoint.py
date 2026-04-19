@@ -79,6 +79,7 @@ class nnMRP(MRP):
             αv=getattr(self, 'αv', None), 
             αq=getattr(self, 'αq', None),
             αt=getattr(self, 'αt', None),
+            σ=getattr(self, 'σ', 1),
             τ=getattr(self, 'τ', 1.0),
             β_entropy=getattr(self, 'β_entropy', 0.01),
             net_str=net_str, final_bias=self.final_bias,
