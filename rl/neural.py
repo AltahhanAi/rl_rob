@@ -228,14 +228,6 @@ class nnPGc(PG(nnMDP)):
         V, _, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
         return V.detach().numpy().squeeze(-1)
 
-    def μ_π(self, s):
-        _, μ, _ = self.wϴ.predict(s, self.state_dim)
-        return μ.detach().numpy()
-
-    def σ_π(self, s):
-        _, _, σ = self.wϴ.predict(s, self.state_dim)
-        return σ.detach().numpy()
-
     def Gaussian(self, s):
         if self.dσ < 1: self.σ = max(self.σmin, self.σ  * self.dσ)
         if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ))
@@ -248,6 +240,14 @@ class nnPGc(PG(nnMDP)):
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)
         return np.atleast_1d(a)
 
+    # def μ_π(self, s):
+    #     _, μ, _ = self.wϴ.predict(s, self.state_dim)
+    #     return μ.detach().numpy()
+
+    # def σ_π(self, s):
+    #     _, _, σ = self.wϴ.predict(s, self.state_dim)
+    #     return σ.detach().numpy()
+        
     # def π(self, s, a):
     #     μ, σ = self.μ_π(s), self.σ_π(s)
     #     return np.prod((1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2)))

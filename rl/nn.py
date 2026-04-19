@@ -294,16 +294,15 @@ class nnACSharedModel(nnSplitModel):
 
         V, π  = self.Vπ(s)
         logπ  = self.logπ(π, a)
-        H     = self.entropy(π)
 
         Gt = Gt.squeeze(-1) if Gt.ndim > 1 else Gt
         if A is None: A = (Gt - V).detach()
 
         L_actor  = self.Δlogπ(A, logπ, γt=γt, **kw)
         L_critic = self.ΔV(V, Gt, exact=exact)
-        L_ent    = self.ΔH(H)
+        L_ent    = self.ΔH(self.entropy(π))
 
-        loss = L_critic  -L_actor - self.β_entropy * L_ent
+        loss = L_critic  -L_actor - L_ent # the entropy multiplier is in self.entrop() keep it there for compatilbility with the linear to prevent changing the random number generator state
 
         self.optim.zero_grad()
         loss.backward()
@@ -344,7 +343,7 @@ class nnACcSharedModel(nnACSharedModel):
         return π.log_prob(a).sum(dim=-1)
     
     def entropy(self, π, a=None):
-        return π.entropy().sum(-1)   # (B,) — matches discrete shape
+        return self.β_entropy * π.entropy().sum(-1) if self.β_entropy else 0 # (B,) — matches discrete shape
         
     def predict(self, s, state_dim):
         V, μ = super().predict(s, state_dim)

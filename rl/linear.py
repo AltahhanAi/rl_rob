@@ -449,7 +449,7 @@ def AC(_PG_=vPG):
             Δlogπ, ΔV, γ, γt, αv, αq, τ = self.Δlogπ, self.ΔV, self.γ, self.γt, self.αv, self.αq, getattr(self, 'τ', 1)
             δ = (1- done)*γ*self.V(sn) + rn - self.V(s)    # TD error is based on the critic estimate
             self.w  += αv*δ*ΔV(s)                 # critic
-            self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ       # actor  
+            self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ       # actor Θ for linear ϴ for neural
             self.γt *= γ
     
     return vActor_Critic

@@ -374,7 +374,7 @@ class vPGc(PG(vMDP)):
         if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ)) # linear      decay
 
         μ = self.μ_π(s) # ϴ @ s
-        σ = self.σ      # passed by user, not learned for simplicity
+        σ = self.σ      # here passed by user, not learned for simplicity
         
         # sample an action value from the Gaussian
         a = np.random.normal(μ, σ) # a = μ + σ * randn(*μ.shape)
@@ -449,7 +449,7 @@ def AC(_PG_=vPG):
             Δlogπ, ΔV, γ, γt, αv, αq, τ = self.Δlogπ, self.ΔV, self.γ, self.γt, self.αv, self.αq, getattr(self, 'τ', 1)
             δ = (1- done)*γ*self.V(sn) + rn - self.V(s)    # TD error is based on the critic estimate
             self.w  += αv*δ*ΔV(s)                 # critic
-            self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ       # actor  
+            self.Θ  += αq*δ*Δlogπ(s,a)*γt/τ       # actor Θ for linear ϴ for neural
             self.γt *= γ
     
     return vActor_Critic
