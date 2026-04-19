@@ -302,7 +302,7 @@ class nnACSharedModel(nnSplitModel):
         L_critic = self.ΔV(V, Gt, exact=exact)
         L_ent    = self.ΔH(self.entropy(π))
 
-        loss = L_critic  -L_actor - L_ent # the entropy multiplier is in self.entrop() keep it there for compatibility with the linear to prevent changing the random number generator state
+        loss = L_critic  -L_actor - self.β_entropy*L_ent
 
         self.optim.zero_grad()
         loss.backward()
@@ -341,10 +341,11 @@ class nnACcSharedModel(nnACSharedModel):
 
     def logπ(self, π, a):
         return π.log_prob(a).sum(dim=-1)
-    
-    def entropy(self, π, a=None):
-        return self.β_entropy * π.entropy().sum(-1) if self.β_entropy else torch.as_tensor([.0]) # (B,) — matches discrete shape
         
+    def entropy(self, π, a=None):
+         # (B,) of zeros, matches discrete shape
+        return π.entropy().sum(-1) if self.β_entropy else torch.zeros(π.mean.shape[0]) 
+    
     def predict(self, s, state_dim):
         V, μ = super().predict(s, state_dim)
         return V, μ, self.σ
