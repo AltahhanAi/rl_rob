@@ -303,7 +303,7 @@ class nnACSharedModel(nnSplitModel):
         L_critic = self.ΔV(V, Gt, exact=exact)
         L_ent    = self.ΔH(H)
 
-        loss = -L_actor + L_critic - self.β_entropy * L_ent
+        loss = L_critic  -L_actor - self.β_entropy * L_ent
 
         self.optim.zero_grad()
         loss.backward()

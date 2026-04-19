@@ -243,18 +243,18 @@ class nnPGc(PG(nnMDP)):
         
         _, μ, σ = self.wϴ.predict(s, self.state_dim)
         μ = μ.detach().numpy()
-        σ = σ.detach().numpy() if  isinstance(σ, torch.Tensor)  else σ
-        a = np.random.normal(μ, σ) # todo: use Normal from torch for better integraiton
+        σ = σ.detach().numpy() if self.wϴ.σ_head is not None  else σ
+        a = np.random.normal(μ, σ) # if you change this here, then change it in the linear.py
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)
         return np.atleast_1d(a)
 
-    def π(self, s, a):
-        μ, σ = self.μ_π(s), self.σ_π(s)
-        return np.prod((1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2)))
+    # def π(self, s, a):
+    #     μ, σ = self.μ_π(s), self.σ_π(s)
+    #     return np.prod((1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2)))
 
-    def logπ(self, s, a):
-        μ, σ = self.μ_π(s), self.σ_π(s)
-        return np.sum(-((a - μ)**2) / (2 * σ**2) - np.log(σ) - .5 * np.log(2 * np.pi))
+    # def logπ(self, s, a):
+    #     μ, σ = self.μ_π(s), self.σ_π(s)
+    #     return np.sum(-((a - μ)**2) / (2 * σ**2) - np.log(σ) - .5 * np.log(2 * np.pi))
 
 # ===============================================================================================
 class nnMC(nnMRP):

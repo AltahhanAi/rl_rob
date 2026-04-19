@@ -374,7 +374,7 @@ class vPGc(PG(vMDP)):
         if self.Tσ > 0: self.σ = max(self.σmin, self.σ0 * (1 - self.t_ / self.Tσ)) # linear      decay
 
         μ = self.μ_π(s) # ϴ @ s
-        σ = self.σ      # passed by user, not learned for simplicity
+        σ = self.σ      # here passed by user, not learned for simplicity
         
         # sample an action value from the Gaussian
         a = np.random.normal(μ, σ) # a = μ + σ * randn(*μ.shape)
@@ -384,7 +384,7 @@ class vPGc(PG(vMDP)):
     # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
     def π(self, s, a):     # pr(a|s)
         μ = self.μ_π(s)    # ϴ @ s
-        σ = self.σ_π(s)    # W @ s
+        σ = self.σ_π(s)    # W @ s or fixed
         
         p = (1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2))
         return np.prod(p)
@@ -402,7 +402,7 @@ class vPGc(PG(vMDP)):
     # gradient of the log of the policy π that appears in the **policy gradient theorem**
     def Δlogπ(self, s, a):  # ∇ log π(s,a)
         μ = self.μ_π(s)     # ϴ @ s
-        σ = self.σ_π(s)     # W @ s
+        σ = self.σ_π(s)     # W @ s or fixed
         a = np.atleast_1d(a)
         
         Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s

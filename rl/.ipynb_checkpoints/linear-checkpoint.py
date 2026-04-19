@@ -384,7 +384,7 @@ class vPGc(PG(vMDP)):
     # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
     def π(self, s, a):     # pr(a|s)
         μ = self.μ_π(s)    # ϴ @ s
-        σ = self.σ_π(s)    # W @ s
+        σ = self.σ_π(s)    # W @ s or fixed
         
         p = (1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2))
         return np.prod(p)
@@ -402,7 +402,7 @@ class vPGc(PG(vMDP)):
     # gradient of the log of the policy π that appears in the **policy gradient theorem**
     def Δlogπ(self, s, a):  # ∇ log π(s,a)
         μ = self.μ_π(s)     # ϴ @ s
-        σ = self.σ_π(s)     # W @ s
+        σ = self.σ_π(s)     # W @ s or fixed
         a = np.atleast_1d(a)
         
         Δlogπ = ((a - μ ) / (σ**2))[:, None] @ s[None, :] # each component of μ has to be multiplied by vector s
