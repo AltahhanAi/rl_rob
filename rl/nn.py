@@ -241,7 +241,7 @@ class nnSplitModel(nnModel):
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
-            x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+            x = F.tanh(layer(x)) if l != self.flat_idx else layer(x) # actor critic tanh is more useful
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 
