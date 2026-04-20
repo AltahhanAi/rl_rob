@@ -431,3 +431,4 @@ class GymContNormalised(GymContS):
 
 # ======================================= Normalised Continuous State ==========================================
 GymCont = GymContS
+GymNormalise = GymContNormalised
