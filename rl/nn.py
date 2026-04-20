@@ -282,40 +282,40 @@ class nnACSharedModel(nnSplitModel):
         self.αt = αt if αt is not None else αv
         self.τ  = τ
 
-    # def forward(self, x):
-    #     V, logits = super().forward(x)
-    #     self._scaled_logits = logits / self.τ        # cache for stable log/entropy
-    #     return V, F.softmax(self._scaled_logits, dim=-1)
-
-    # def Vπ(self, s):
-    #     V, π = self(s)
-    #     return V.squeeze(-1), π
-
-    # def logπ(self, π, a):
-    #     # π kept in signature for backward compatibility; computed from cached logits
-    #     logp = F.log_softmax(self._scaled_logits, dim=-1)
-    #     return logp[range(len(a)), a]
-
-    # def entropy(self, π):
-    #     logp = F.log_softmax(self._scaled_logits, dim=-1)
-    #     p    = logp.exp()
-    #     return -(p * logp).sum(dim=-1)
-
-
-    
     def forward(self, x):
         V, logits = super().forward(x)
-        return V, F.softmax(logits / self.τ, dim=-1)
+        self._scaled_logits = logits / self.τ        # cache for stable log/entropy
+        return V, F.softmax(self._scaled_logits, dim=-1)
 
     def Vπ(self, s):
         V, π = self(s)
         return V.squeeze(-1), π
-    
+
     def logπ(self, π, a):
-        return torch.log(π[range(len(a)), a] + 1e-8)
+        # π kept in signature for backward compatibility; computed from cached logits
+        logp = F.log_softmax(self._scaled_logits, dim=-1)
+        return logp[range(len(a)), a]
 
     def entropy(self, π):
-        return -(π * torch.log(π + 1e-8)).sum(dim=-1)
+        logp = F.log_softmax(self._scaled_logits, dim=-1)
+        p    = logp.exp()
+        return -(p * logp).sum(dim=-1)
+
+
+    
+    # def forward(self, x):
+    #     V, logits = super().forward(x)
+    #     return V, F.softmax(logits / self.τ, dim=-1)
+
+    # def Vπ(self, s):
+    #     V, π = self(s)
+    #     return V.squeeze(-1), π
+    
+    # def logπ(self, π, a):
+    #     return torch.log(π[range(len(a)), a] + 1e-8)
+
+    # def entropy(self, π):
+    #     return -(π * torch.log(π + 1e-8)).sum(dim=-1)
 
     # ---------- the three update signals (mirror the classical AC algorithm) ----------
     def Δlogπ(self, A, logπ, γt=1.0, **kw):
