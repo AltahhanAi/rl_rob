@@ -43,13 +43,14 @@ class Trace(list):
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', 
-                 final_bias=True, clipCNN=True, **kw):
+                 final_bias=True, clipCNN=False, clipModel=False,  **kw): # clipCNN is redundant and can be replaced by clipModel
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
         self.trunk = trunk
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
-        self.clipCNN = clipCNN
+        self.clipModel = clipModel = self.clipCNN = clipCNN # priority is for clipCNN
+        
         feat_in = inp_dim[0]
         feat_in = self.append_trunk(feat_in, inp_dim)
         self.inp_dim = inp_dim
@@ -93,13 +94,16 @@ class nnModel(nn.Module):
             x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
         return self.layers[-1](x)    
 
+    def clip_grads(self):
+        clip_grad_norm_(self.parameters(), max_norm=1.0) 
+        
     def fit(self, vals, targets, exact=True):
         self.train()
         self.optim.zero_grad()
         if exact: loss = .5 * F.mse_loss(vals, targets, reduction='sum') / len(vals)
         else:     loss = .5 * F.mse_loss(vals, targets)
         loss.backward()
-        clip_grad_norm_(self.parameters(), max_norm=1.0) if self.CNN and self.clipCNN else None
+        self.clip_grads() if self.clipModel else None
         self.optim.step()
         return loss.item()
 
@@ -127,7 +131,7 @@ class nnModel(nn.Module):
                 if p.grad is None:
                     p.grad = torch.zeros_like(p)
                 p.grad.copy_(-δ.item() * z_)
-        if self.CNN and self.clipCNN: clip_grad_norm_(self.parameters(), max_norm=1.0)
+        self.clip_grads() if self.clipModel else None
         self.optim.step()
         self.optim.zero_grad()
     # --------------------------------------------------------------------------------------
@@ -240,14 +244,13 @@ class nnSplitModel(nnModel):
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 
-    def clip_grads(self):
-        """Clip gradients per parameter group (trunk / critic head / actor head).
-        No-op unless CNN mode with clipping enabled."""
-        if not (self.CNN and self.clipCNN): return
+    # override to include the trun, head1 and head2 seprately with different max-norms
+    def clip_grads(self, trunk_norm=1.0, head1_norm=.5, head2_norm=1.0):
+        '''Clip gradients per parameter group (trunk / critic head / actor head)'''
         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-        clip_grad_norm_(trunk_params,            max_norm=1.0)  # trunk
-        clip_grad_norm_(self.head1.parameters(), max_norm=0.5)  # critic head: tighter
-        clip_grad_norm_(self.head2.parameters(), max_norm=1.0)  # actor head:  full budget
+        clip_grad_norm_(trunk_params,            max_norm=trunk_norm)  # trunk
+        clip_grad_norm_(self.head1.parameters(), max_norm=head1_norm)  # critic head: tighter
+        clip_grad_norm_(self.head2.parameters(), max_norm=head2_norm)  # actor head:  full budget
 
 # ===============================================================================================
 class nnDuelModel(nnSplitModel):
@@ -313,7 +316,7 @@ class nnACSharedModel(nnSplitModel):
 
         self.optim.zero_grad()
         loss.backward()
-        self.clip_grads()
+        self.clip_grads() if self.clipModel else None
         self.optim.step()
         return loss.item()
 
