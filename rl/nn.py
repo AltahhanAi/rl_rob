@@ -48,6 +48,7 @@ class nnModel(nn.Module):
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
         self.trunk = trunk
+        self.nF = nF
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
         self.clipModel = clipModel # clip the weights of the model
         
