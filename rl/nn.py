@@ -148,7 +148,7 @@ class nnModel(nn.Module):
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
                     
-       self.optim = self.optimiser(self.parameters(), lr=self.α)
+        self.optim = self.optimiser(self.parameters(), lr=self.α)
 
     def load_weights(self, net_str):
         print(self.loading_msg % net_str)
