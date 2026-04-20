@@ -270,20 +270,37 @@ class nnACSharedModel(nnSplitModel):
         self.αv, self.αq = αv, αq
         self.αt = αt if αt is not None else αv
         self.τ  = τ
-
+    
     def forward(self, x):
         V, logits = super().forward(x)
-        return V, F.softmax(logits / self.τ, dim=-1)
-
-    def Vπ(self, s):
-        V, π = self(s)
-        return V.squeeze(-1), π
+        return V, logits / self.τ                 # return temperature-scaled logits
     
-    def logπ(self, π, a):
-        return torch.log(π[range(len(a)), a] + 1e-8)
+    def Vπ(self, s):
+        V, scaled_logits = self(s)
+        return V.squeeze(-1), scaled_logits
+    
+    def logπ(self, scaled_logits, a):
+        logp = F.log_softmax(scaled_logits, dim=-1)
+        return logp[range(len(a)), a]
+    
+    def entropy(self, scaled_logits):
+        logp = F.log_softmax(scaled_logits, dim=-1)
+        p    = logp.exp()
+        return -(p * logp).sum(dim=-1)
+        
+    # def forward(self, x):
+    #     V, logits = super().forward(x)
+    #     return V, F.softmax(logits / self.τ, dim=-1)
 
-    def entropy(self, π):
-        return -(π * torch.log(π + 1e-8)).sum(dim=-1)
+    # def Vπ(self, s):
+    #     V, π = self(s)
+    #     return V.squeeze(-1), π
+    
+    # def logπ(self, π, a):
+    #     return torch.log(π[range(len(a)), a] + 1e-8)
+
+    # def entropy(self, π):
+    #     return -(π * torch.log(π + 1e-8)).sum(dim=-1)
 
     # ---------- the three update signals (mirror the classical AC algorithm) ----------
     def Δlogπ(self, A, logπ, γt=1.0, **kw):
