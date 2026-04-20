@@ -200,6 +200,10 @@ class nnPG(PG(nnMDP)):
         return π[a].detach().numpy() # necessary for base classes
 
     def softmax(self, s):
+        if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                  # exponential decay
+        if self.Tτ > 0: self.τ = max(self.τmin, self.τ0 * (1 - self.t_ / self.Tτ)) # linear      decay
+        self.wϴ.τ = self.τ # set τ in wϴ model only if not learned in wϴ
+            
         _, π = self.wϴ.predict(s, self.state_dim)
         π = π.detach().numpy().flatten()              # flatten to 1-d
         a = choices(range(self.env.nA), weights=π, k=1)[0]
