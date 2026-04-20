@@ -581,7 +581,7 @@ def AC(base=nnPG, name='nnActor_Critic'):
             Gt = self.γ * Vn + rn.squeeze(-1)
             
             self.wϴ.fit(s, a, Gt, γt=self.γt)
-            self.γt *= self.γ
+            # self.γt *= self.γ  # usually dropped in implmentation
             
     nnActor_Critic_.__name__     = name
     nnActor_Critic_.__qualname__ = name # for pickle to work

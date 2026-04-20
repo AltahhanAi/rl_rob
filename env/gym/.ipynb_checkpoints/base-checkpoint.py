@@ -397,7 +397,7 @@ class GymContS(Gym):
 
 
 # ======================================= Normalised Continuous State ==========================================
-class GymContNormalised(GymContS):
+class GymContGymScaled(GymContS):
     """Like GymContS, but rescales observations to [-1, 1] using `low`/`high` bounds."""
     def __init__(self, env_id, low, high, **kw):
         super().__init__(env_id=env_id, **kw)
@@ -409,4 +409,4 @@ class GymContNormalised(GymContS):
         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 # ======================================= Normalised Continuous State ==========================================
 GymCont = GymContS
-GymNormalise = GymContNormalised
+GymScaled = GymContNormalised
