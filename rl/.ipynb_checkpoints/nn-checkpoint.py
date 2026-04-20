@@ -60,7 +60,13 @@ class nnModel(nn.Module):
         self.saving_msg  = 'saving %s network weights to disk...!'
         self.loading_msg = 'loading %s network weights from disk...!'
         self.net_str = net_str
-
+        # default optimiser is Adam unless the model is linear, which means we want to test for exact alignment  
+        self.optimiser = if not self linear_compatible() else optim.SGD 
+    
+    # useful for testing exact alignment with linear models such as vTD, vQlearn, vActor_Critic, etc.
+    def linear_compatible(self):
+        return self.trunk==[] and self.nF is None
+        
     def append_trunk(self, feat_in, inp_dim):
         for feat_out in self.trunk:
             CNN_layer = isinstance(feat_out, tuple) and len(feat_out) > 1
@@ -140,9 +146,8 @@ class nnModel(nn.Module):
                     init.xavier_normal_(layer.weight, gain=gain)
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
-        self.optim = optim.Adam(self.parameters(), lr=self.α)
-        # if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
-        # else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
+                    
+       self.optim = self.optimiser(self.parameters(), lr=self.α)
 
     def load_weights(self, net_str):
         print(self.loading_msg % net_str)
@@ -225,7 +230,8 @@ class nnSplitModel(nnModel):
                 {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
                 {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
             ]
-            self.optim = optim.Adam(groups) #if self.CNN else optim.SGD(groups)
+            
+            self.optim = self.optimiser(groups) 
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
