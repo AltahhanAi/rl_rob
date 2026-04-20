@@ -409,4 +409,4 @@ class GymContGymScaled(GymContS):
         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 # ======================================= Normalised Continuous State ==========================================
 GymCont = GymContS
-GymScaled = GymContNormalised
+GymScaled = GymContGymScaled
