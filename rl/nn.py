@@ -220,39 +220,35 @@ class nnSplitModel(nnModel):
         self.layers.append(self.head2)                         # register for summary
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
+    def init_weights(self, head1_v0=None, head2_q0=None):
+        super().init_weights(skip_from=self.head_idx)
+        gain = init.calculate_gain('relu')
+        for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
+            if v0 is not None:
+                init.constant_(head.weight, v0)
+            elif head is self.head2 and isinstance(self, nnACSharedModel):   # ← only new line
+                init.orthogonal_(head.weight, gain=0.01)                     # ← only new line
+            else:
+                init.xavier_normal_(head.weight, gain=gain)
+            if head.bias is not None: init.zeros_(head.bias)
+                
     # def init_weights(self, head1_v0=None, head2_q0=None):
     #     super().init_weights(skip_from=self.head_idx)
     #     gain = init.calculate_gain('relu')
     #     for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
     #         init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
     #         if head.bias is not None: init.zeros_(head.bias)
-    #     αv = getattr(self, 'αv', None)
-    #     αq = getattr(self, 'αq', None)
-    #     αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
-    #     if αv is not None and αq is not None:
-    #         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-    #         groups = [
-    #             {'params': trunk_params,                              'lr': αt},  # trunk
-    #             {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
-    #             {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
-    #         ]
-            
-    #         self.optim = self.optimiser(groups) 
-    
-    def init_weights(self, head1_v0=None, head2_q0=None, policy_head_gain=0.01):
-        super().init_weights(skip_from=self.head_idx)
-        # value head (head1): keep xavier or orthogonal gain=1
-        if head1_v0 is not None:
-            init.constant_(self.head1.weight, head1_v0)
-        else:
-            init.orthogonal_(self.head1.weight, gain=1.0)
-        # policy head (head2): small gain for near-uniform init
-        if head2_q0 is not None:
-            init.constant_(self.head2.weight, head2_q0)
-        else:
-            init.orthogonal_(self.head2.weight, gain=policy_head_gain)
-        for head in (self.head1, self.head2):
-            if head.bias is not None: init.zeros_(head.bias)            
+        αv = getattr(self, 'αv', None)
+        αq = getattr(self, 'αq', None)
+        αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
+        if αv is not None and αq is not None:
+            trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+            groups = [
+                {'params': trunk_params,                              'lr': αt},  # trunk
+                {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
+                {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
+            ]
+            self.optim = self.optimiser(groups)           
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
