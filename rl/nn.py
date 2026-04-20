@@ -61,7 +61,7 @@ class nnModel(nn.Module):
         self.loading_msg = 'loading %s network weights from disk...!'
         self.net_str = net_str
         # default optimiser is Adam unless the model is linear, which means we want to test for exact alignment  
-        self.optimiser = if not self linear_compatible() else optim.SGD 
+        self.optimiser = optim.Adam if not self linear_compatible() else optim.SGD 
     
     # useful for testing exact alignment with linear models such as vTD, vQlearn, vActor_Critic, etc.
     def linear_compatible(self):
