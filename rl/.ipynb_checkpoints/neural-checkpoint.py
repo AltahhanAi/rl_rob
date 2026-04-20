@@ -196,16 +196,10 @@ class nnPG(PG(nnMDP)):
         V, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
         return V.detach().numpy().squeeze(-1) # necessary for the bas classes
 
-    # def H(self, s=None, a=None):
-    #     _, π = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
-    #     if a is None: return π.detach().numpy()
-    #     return π[a].detach().numpy() # necessary for base classes
-    
     def H(self, s=None, a=None):
-        _, logits = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
-        π = F.softmax(logits, dim=-1)
+        _, π = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
         if a is None: return π.detach().numpy()
-        return π[a].detach().numpy()
+        return π[a].detach().numpy() # necessary for base classes
         
     def softmax(self, s):
         if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                  # exponential decay
