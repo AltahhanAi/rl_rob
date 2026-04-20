@@ -140,9 +140,9 @@ class nnModel(nn.Module):
                     init.xavier_normal_(layer.weight, gain=gain)
                 if layer.bias is not None:
                     init.zeros_(layer.bias)
-        
-        if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
-        else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
+        self.optim = optim.Adam(self.parameters(), lr=self.α)
+        # if self.CNN: self.optim = optim.Adam(self.parameters(), lr=self.α)
+        # else:        self.optim = optim.SGD(self.parameters(),  lr=self.α)
 
     def load_weights(self, net_str):
         print(self.loading_msg % net_str)
@@ -225,7 +225,7 @@ class nnSplitModel(nnModel):
                 {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
                 {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
             ]
-            self.optim = optim.Adam(groups) if self.CNN else optim.SGD(groups)
+            self.optim = optim.Adam(groups) #if self.CNN else optim.SGD(groups)
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
@@ -338,7 +338,11 @@ class nnACcSharedModel(nnACSharedModel):
 
     def π(self, μ, σ):
         return Normal(μ, σ)
-
+        
+    def logπ(self,  μ, σ, a):
+        logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - .5*np.log(2*np.pi)
+        return np.sum(logπ)
+        
     def logπ(self, π, a):
         return π.log_prob(a).sum(dim=-1)
         
