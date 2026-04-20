@@ -196,24 +196,26 @@ class nnPG(PG(nnMDP)):
         V, _ = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
         return V.detach().numpy().squeeze(-1) # necessary for the bas classes
 
+    # def H(self, s=None, a=None):
+    #     _, π = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
+    #     if a is None: return π.detach().numpy()
+    #     return π[a].detach().numpy() # necessary for base classes
+    
     def H(self, s=None, a=None):
-        _, π = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
+        _, logits = self.wϴ.predict(s if s is not None else self.env.S_(), self.state_dim)
+        π = F.softmax(logits, dim=-1)
         if a is None: return π.detach().numpy()
-        return π[a].detach().numpy() # necessary for base classes
-
+        return π[a].detach().numpy()
+        
     def softmax(self, s):
         if self.dτ < 1: self.τ = max(self.τmin, self.τ  *self.dτ)                  # exponential decay
         if self.Tτ > 0: self.τ = max(self.τmin, self.τ0 * (1 - self.t_ / self.Tτ)) # linear      decay
         self.wϴ.τ = self.τ # set τ in wϴ model only if not learned in wϴ
-            
-        _, logits = self.wϴ.predict(s, self.state_dim)
-        a = torch.distributions.Categorical(logits=logits).sample().item()
-        return a
 
-        # _, π = self.wϴ.predict(s, self.state_dim)
-        # π = π.detach().numpy().flatten()              # flatten to 1-d    
-        # a = choices(range(self.env.nA), weights=π, k=1)[0]
-        # return a
+        _, π = self.wϴ.predict(s, self.state_dim)
+        π = π.detach().numpy().flatten()              # flatten to 1-d    
+        a = choices(range(self.env.nA), weights=π, k=1)[0]
+        return a
         
 # ===============================================================================================
 class nnPGc(PG(nnMDP)):

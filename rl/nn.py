@@ -220,24 +220,39 @@ class nnSplitModel(nnModel):
         self.layers.append(self.head2)                         # register for summary
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
-    def init_weights(self, head1_v0=None, head2_q0=None):
-        super().init_weights(skip_from=self.head_idx)
-        gain = init.calculate_gain('relu')
-        for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
-            init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
-            if head.bias is not None: init.zeros_(head.bias)
-        αv = getattr(self, 'αv', None)
-        αq = getattr(self, 'αq', None)
-        αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
-        if αv is not None and αq is not None:
-            trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-            groups = [
-                {'params': trunk_params,                              'lr': αt},  # trunk
-                {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
-                {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
-            ]
+    # def init_weights(self, head1_v0=None, head2_q0=None):
+    #     super().init_weights(skip_from=self.head_idx)
+    #     gain = init.calculate_gain('relu')
+    #     for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
+    #         init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
+    #         if head.bias is not None: init.zeros_(head.bias)
+    #     αv = getattr(self, 'αv', None)
+    #     αq = getattr(self, 'αq', None)
+    #     αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
+    #     if αv is not None and αq is not None:
+    #         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+    #         groups = [
+    #             {'params': trunk_params,                              'lr': αt},  # trunk
+    #             {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
+    #             {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
+    #         ]
             
-            self.optim = self.optimiser(groups) 
+    #         self.optim = self.optimiser(groups) 
+    
+    def init_weights(self, head1_v0=None, head2_q0=None, policy_head_gain=0.01):
+        super().init_weights(skip_from=self.head_idx)
+        # value head (head1): keep xavier or orthogonal gain=1
+        if head1_v0 is not None:
+            init.constant_(self.head1.weight, head1_v0)
+        else:
+            init.orthogonal_(self.head1.weight, gain=1.0)
+        # policy head (head2): small gain for near-uniform init
+        if head2_q0 is not None:
+            init.constant_(self.head2.weight, head2_q0)
+        else:
+            init.orthogonal_(self.head2.weight, gain=policy_head_gain)
+        for head in (self.head1, self.head2):
+            if head.bias is not None: init.zeros_(head.bias)            
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
@@ -270,24 +285,26 @@ class nnACSharedModel(nnSplitModel):
         self.αv, self.αq = αv, αq
         self.αt = αt if αt is not None else αv
         self.τ  = τ
-    
+
     def forward(self, x):
         V, logits = super().forward(x)
-        return V, logits / self.τ                 # return temperature-scaled logits
-    
+        self._scaled_logits = logits / self.τ        # cache for stable log/entropy
+        return V, F.softmax(self._scaled_logits, dim=-1)
+
     def Vπ(self, s):
-        V, scaled_logits = self(s)
-        return V.squeeze(-1), scaled_logits
-    
-    def logπ(self, scaled_logits, a):
-        logp = F.log_softmax(scaled_logits, dim=-1)
+        V, π = self(s)
+        return V.squeeze(-1), π
+
+    def logπ(self, π, a):
+        # π kept in signature for backward compatibility; computed from cached logits
+        logp = F.log_softmax(self._scaled_logits, dim=-1)
         return logp[range(len(a)), a]
-    
-    def entropy(self, scaled_logits):
-        logp = F.log_softmax(scaled_logits, dim=-1)
+
+    def entropy(self, π):
+        logp = F.log_softmax(self._scaled_logits, dim=-1)
         p    = logp.exp()
         return -(p * logp).sum(dim=-1)
-        
+
     # def forward(self, x):
     #     V, logits = super().forward(x)
     #     return V, F.softmax(logits / self.τ, dim=-1)
@@ -330,7 +347,7 @@ class nnACSharedModel(nnSplitModel):
         L_critic = self.ΔV(V, Gt, exact=exact)
         L_ent    = self.ΔH(self.entropy(π))
 
-        loss = .5*L_critic  -L_actor - self.β_entropy*L_ent
+        loss = L_critic  -L_actor - self.β_entropy*L_ent
 
         self.optim.zero_grad()
         loss.backward()
@@ -367,9 +384,9 @@ class nnACcSharedModel(nnACSharedModel):
     def π(self, μ, σ):
         return Normal(μ, σ)
         
-    def logπ(self,  μ, σ, a):
-        logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - .5*np.log(2*np.pi)
-        return np.sum(logπ)
+    # def logπ(self,  μ, σ, a):
+    #     logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - .5*np.log(2*np.pi)
+    #     return np.sum(logπ)
         
     def logπ(self, π, a):
         return π.log_prob(a).sum(dim=-1)
