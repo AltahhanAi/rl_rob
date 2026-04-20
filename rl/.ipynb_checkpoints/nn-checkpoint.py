@@ -43,13 +43,13 @@ class Trace(list):
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', 
-                 final_bias=True, clipCNN=False, clipModel=False,  **kw): # clipCNN is redundant and can be replaced by clipModel
+                 final_bias=True, clipModel=False,  **kw): 
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
         self.trunk = trunk
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
-        self.clipModel = clipModel = self.clipCNN = clipCNN # priority is for clipCNN
+        self.clipModel = clipModel # clip the weights of the model
         
         feat_in = inp_dim[0]
         feat_in = self.append_trunk(feat_in, inp_dim)
