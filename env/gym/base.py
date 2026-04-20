@@ -395,4 +395,39 @@ class GymContS(Gym):
         # IMPORTANT: continuous-class environments should NOT inherit gridworld action remapping.
         return a
 
+
+# ======================================= Normalised Continuous State ==========================================
+class GymContNormalised(GymContS):
+    """
+    Like GymContS, but rescales flattened observations to [-1, 1] using the
+    observation_space bounds. Only makes sense when observation_space is Box
+    with finite low/high (e.g. MountainCar, CartPole, Acrobot, Pendulum).
+
+    Any dimension whose bound is non-finite is left untouched, so the wrapper
+    degrades gracefully on mixed-bound spaces.
+    """
+    def __init__(self, env_id="MountainCar-v0", make=gym.make, render_mode="rgb_array", **kw):
+        super().__init__(env_id=env_id, make=make, render_mode=render_mode, **kw)
+
+        low  = np.asarray(flatten(self.obs_space, self.obs_space.low),  dtype=np.float32)
+        high = np.asarray(flatten(self.obs_space, self.obs_space.high), dtype=np.float32)
+
+        # Mask out infinite bounds — those dims will pass through unchanged.
+        finite = np.isfinite(low) & np.isfinite(high)
+        self._mid  = np.where(finite, (high + low) / 2, 0.0).astype(np.float32)
+        self._half = np.where(finite, (high - low) / 2, 1.0).astype(np.float32)
+        self._finite_mask = finite
+
+        if not finite.all():
+            print(f"note: {(~finite).sum()} obs dim(s) have non-finite bounds; "
+                  f"those will not be normalised.")
+
+    def _proc_obs(self, obs):
+        flat = super()._proc_obs(obs).astype(np.float32)
+        out = flat.copy()
+        out[self._finite_mask] = (flat[self._finite_mask] - self._mid[self._finite_mask]) \
+                                 / self._half[self._finite_mask]
+        return out
+
+# ======================================= Normalised Continuous State ==========================================
 GymCont = GymContS
