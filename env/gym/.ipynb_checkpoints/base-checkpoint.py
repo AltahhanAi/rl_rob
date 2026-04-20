@@ -407,6 +407,40 @@ class GymContGymScaled(GymContS):
 
     def _proc_obs(self, obs):
         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
-# ======================================= Normalised Continuous State ==========================================
+
+# ======================================= Scaled/Normalised Shaped Reward ==========================================
 GymCont = GymContS
 GymScaled = GymContGymScaled
+
+class GymScaledShaped(GymContGymScaled):
+    def __init__(self, **kw):
+        super().__init__(**{**MountainCar, **kw})
+        self._last_F = 0.0
+
+    def _potential(self, raw_obs):
+        pos, vel = raw_obs
+        # mechanical energy: KE + PE
+        return 0.5 * vel * vel + 0.0025 * np.sin(3 * pos)
+
+    def reset(self, **kw):
+        obs = super().reset(**kw)
+        self._last_F = self._potential(self.obs)
+        return obs
+
+    def step(self, a):
+        obs, r, term, trunc, info = super().step(a)
+        F = self._potential(self.obs)
+        r_shaped = r + 100.0 * (F - self._last_F)
+        self._last_F = F
+        return obs, r_shaped, term, trunc, info
+
+# ======================================= Scaled/Normalised Sparse Reward ==========================================
+# reward 1 for reaching goal 0 everywhere
+class GymScaledSparse(GymContGymScaled):
+    def __init__(self, **kw):
+        super().__init__(**{**MountainCar, **kw})
+
+    def step(self, a):
+        obs, r, term, trunc, info = super().step(a)
+        r = 1.0 if term else 0.0
+        return obs, r, term, trunc, info
