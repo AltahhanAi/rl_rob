@@ -40,6 +40,7 @@ from rl.dp import *
 import pickle
 from pathlib import Path
 import traceback
+import torch
 # ==============================================Base class for prediction =============================================
 '''
     All other RL classes will inherit from this class.
@@ -108,12 +109,13 @@ class MRP:
         self.Ts = np.resize(self.Ts, self.episodes)
         self.Rs = np.resize(self.Rs, self.episodes)
         self.Es = np.resize(self.Es, self.episodes)
-    
+            
     def set_seed(self, seed=None, **kw):
         if seed is not None: 
             np.random.seed(seed)
             random.seed(seed)
-            self.env.reset(seed=self.seed)  # seed once at the start
+            torch.manual_seed(seed)
+            self.env.reset(seed=self.seed)      
     #-------------------------------------------buffer related-------------------------------------------------
     # The buffer gets reinitialised by reinitialising t only, but we have to be careful not to exceed t+1 at any time
     def allocate(self): 
