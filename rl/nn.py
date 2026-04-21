@@ -330,7 +330,7 @@ class nnACSharedModel(nnSplitModel):
     def entropy(self, π):
         logp = F.log_softmax(self._scaled_logits, dim=-1)
         p    = logp.exp()
-        print('entropy', self.β_entropy )
+        # print('entropy', self.β_entropy )
         return -(p * logp).sum(dim=-1)
 
 
