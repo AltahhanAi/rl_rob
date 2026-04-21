@@ -42,7 +42,7 @@ class Trace(list):
         return self
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
-    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', 
+    def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', optimiser=None,
                  final_bias=True, clipModel=False,  **kw): 
         super().__init__()
         self.layers = nn.ModuleList()
@@ -64,7 +64,8 @@ class nnModel(nn.Module):
         self.net_str = net_str
         
         # default optimiser is Adam unless the model is linear, which means we want to test for exact alignment  
-        self.optimiser = optim.Adam if not self.linear_compatible() else optim.SGD 
+        if optimiser is None:
+            self.optimiser = optim.Adam if not self.linear_compatible() else optim.SGD 
     
     # useful for testing exact alignment with linear models such as vTD, vQlearn, vActor_Critic, etc.
     def linear_compatible(self):
