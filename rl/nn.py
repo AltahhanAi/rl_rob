@@ -66,7 +66,7 @@ class nnModel(nn.Module):
         # default optimiser is Adam unless the model is linear, which means we want to test for exact alignment  
         if optimiser is None:
             self.optimiser = optim.Adam if not self.linear_compatible() else optim.SGD
-        else self.optimiser = optimiser
+        else: self.optimiser = optimiser
     
     # useful for testing exact alignment with linear models such as vTD, vQlearn, vActor_Critic, etc.
     def linear_compatible(self):
