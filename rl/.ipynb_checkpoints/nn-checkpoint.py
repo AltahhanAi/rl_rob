@@ -66,7 +66,7 @@ class nnModel(nn.Module):
         # default optimiser is Adam unless the model is linear, which means we want to test for exact alignment  
         if optimiser is None:
             # self.optimiser = optim.Adam if not self.linear_compatible() else optim.SGD
-            self.optimiser = optim.Adam if not self.CNN else optim.SGD
+            self.optimiser = optim.Adam if self.CNN else optim.SGD
             
         else: self.optimiser = optimiser
     
