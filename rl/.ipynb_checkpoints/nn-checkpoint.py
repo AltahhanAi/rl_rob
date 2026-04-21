@@ -422,6 +422,7 @@ class nnACcSharedModel(nnACSharedModel):
         
     def entropy(self, π, a=None):
          # (B,) of zeros, matches discrete shape
+        # print('entropy', self.β_entropy )
         return π.entropy().sum(-1) if self.β_entropy else torch.zeros(π.mean.shape[0]) 
     
     def predict(self, s, state_dim):
