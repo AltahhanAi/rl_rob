@@ -31,6 +31,7 @@ class nnMRP(MRP):
                  clipCNN=False,
                  clipModel=False,
                  β_entropy=0.01,
+                 optimiser=None,
                  **kw):
         self.model_summary = model_summary
         print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------') if model_summary else None
@@ -58,10 +59,12 @@ class nnMRP(MRP):
         self.save_weights_ = save_weights
         self.t_ = 0
         self.β_entropy = β_entropy
+        
         # clipCNN is redundant and can be replaced by clipModel
         self.clipModel = clipModel = self.clipCNN = clipCNN # priority is for clipCNN
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
+        self.optimiser = optimiser
         
 
     def init_(self):
@@ -86,6 +89,7 @@ class nnMRP(MRP):
             β_entropy=getattr(self, 'β_entropy', 0.01),
             net_str=net_str, final_bias=self.final_bias,
             clipCNN=self.clipCNN,
+            optimiser=self.optimiser
         )
         if self.model_summary: model.print_model_summary(net_str)
         return model
