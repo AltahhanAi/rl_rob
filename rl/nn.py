@@ -330,6 +330,7 @@ class nnACSharedModel(nnSplitModel):
     def entropy(self, π):
         logp = F.log_softmax(self._scaled_logits, dim=-1)
         p    = logp.exp()
+        print('entropy', self.β_entropy )
         return -(p * logp).sum(dim=-1)
 
 
@@ -422,7 +423,6 @@ class nnACcSharedModel(nnACSharedModel):
         
     def entropy(self, π, a=None):
          # (B,) of zeros, matches discrete shape
-        print('entropy', self.β_entropy )
         return π.entropy().sum(-1) if self.β_entropy else torch.zeros(π.mean.shape[0]) 
     
     def predict(self, s, state_dim):
