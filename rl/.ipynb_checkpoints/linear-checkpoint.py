@@ -381,22 +381,23 @@ class vPGc(PG(vMDP)):
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)  # clip for safety          
         return np.atleast_1d(a)
 
-    # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
-    def π(self, s, a):     # pr(a|s)
-        μ = self.μ_π(s)    # ϴ @ s
-        σ = self.σ_π(s)    # W @ s or fixed
-        
-        p = (1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2))
-        return np.prod(p)
     
-    # returns the log of π: mainly for reference and will not be called directly, instead we need ∇logπ 
-    def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
+    # # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
+    # def π(self, s, a):     # pr(a|s)
+    #     μ = self.μ_π(s)    # ϴ @ s
+    #     σ = self.σ_π(s)    # W @ s or fixed
+        
+    #     p = (1.0 / (np.sqrt(2 * np.pi) * σ)) * np.exp(-((a - μ) ** 2) / (2 * σ**2))
+    #     return np.prod(p)
+    
+    # # returns the log of π: mainly for reference and will not be called directly, instead we need ∇logπ 
+    # def logπ(self, s, a):   # gaussian logπ vector: log pr(a|s)
 
-        μ = self.μ_π(s)     # is     ϴ @ s
-        σ = self.σ_π(s)     # can be W @ s
+    #     μ = self.μ_π(s)     # is     ϴ @ s
+    #     σ = self.σ_π(s)     # can be W @ s
 
-        logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - .5*np.log(2*np.pi)
-        return np.sum(logπ)
+    #     logπ = -((a-μ)**2)/(2*σ**2) - np.log(σ ) - .5*np.log(2*np.pi)
+    #     return np.sum(logπ)
 
     # we should have used ∇ , but Python does not like it
     # gradient of the log of the policy π that appears in the **policy gradient theorem**
