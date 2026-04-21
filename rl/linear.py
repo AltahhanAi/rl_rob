@@ -381,6 +381,7 @@ class vPGc(PG(vMDP)):
         a = np.clip(a, self.env.action_space.low, self.env.action_space.high)  # clip for safety          
         return np.atleast_1d(a)
 
+
     
     # # action probability as per the Gaussian formula: mainly for reference and will not be called directly.
     # def π(self, s, a):     # pr(a|s)
