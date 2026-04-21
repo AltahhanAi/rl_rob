@@ -225,34 +225,61 @@ class nnSplitModel(nnModel):
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
     def init_weights(self, head1_v0=None, head2_q0=None):
-        super().init_weights(skip_from=self.head_idx)
-        gain = init.calculate_gain('relu')
+        gain_trunk = init.calculate_gain('tanh')    # matches the trunk activation
+        gain_head  = init.calculate_gain('linear')  # heads are linear outputs
+    
+        # --- trunk ---
+        for layer in self.layers[:self.head_idx]:
+            if isinstance(layer, (nn.Linear, nn.Conv2d)):
+                init.xavier_normal_(layer.weight, gain=gain_trunk)
+                if layer.bias is not None:
+                    init.zeros_(layer.bias)
+    
+        # --- heads ---
         for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
             if v0 is not None:
                 init.constant_(head.weight, v0)
-            elif head is self.head2 and isinstance(self, nnACSharedModel):   # ← only new line
-                init.orthogonal_(head.weight, gain=0.01)                     # ← only new line
+            elif head is self.head2 and isinstance(self, nnACSharedModel):
+                init.orthogonal_(head.weight, gain=0.01)   # near-uniform initial policy
             else:
-                init.xavier_normal_(head.weight, gain=gain)
-            if head.bias is not None: init.zeros_(head.bias)
-                
+                init.xavier_normal_(head.weight, gain=gain_head)
+            if head.bias is not None:
+                init.zeros_(head.bias)
+    
+        # --- optimiser ----
+        αv = getattr(self, 'αv', None)
+        αq = getattr(self, 'αq', None)
+        αt = getattr(self, 'αt', αv)   # falls back to αv if αt not set
+    
+        if αv is not None and αq is not None:
+            trunk_params = [p for layer in self.layers[:self.head_idx]
+                              for p in layer.parameters()]
+            groups = [
+                {'params': trunk_params,                  'lr': αt},  # trunk
+                {'params': list(self.head1.parameters()), 'lr': αv},  # critic head
+                {'params': list(self.head2.parameters()), 'lr': αq},  # actor head
+            ]
+            self.optim = self.optimiser(groups)
+        else: self.optim = self.optimiser(self.parameters(), lr=self.α)
+            
+                    
     # def init_weights(self, head1_v0=None, head2_q0=None):
     #     super().init_weights(skip_from=self.head_idx)
     #     gain = init.calculate_gain('relu')
     #     for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
     #         init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
     #         if head.bias is not None: init.zeros_(head.bias)
-        αv = getattr(self, 'αv', None)
-        αq = getattr(self, 'αq', None)
-        αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
-        if αv is not None and αq is not None:
-            trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-            groups = [
-                {'params': trunk_params,                              'lr': αt},  # trunk
-                {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
-                {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
-            ]
-            self.optim = self.optimiser(groups)           
+    #     αv = getattr(self, 'αv', None)
+    #     αq = getattr(self, 'αq', None)
+    #     αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
+    #     if αv is not None and αq is not None:
+    #         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
+    #         groups = [
+    #             {'params': trunk_params,                              'lr': αt},  # trunk
+    #             {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
+    #             {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
+    #         ]
+    #         self.optim = self.optimiser(groups)           
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
