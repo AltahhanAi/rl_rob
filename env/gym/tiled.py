@@ -103,7 +103,7 @@ class TileCoder:
 # ========================================= Gym Env Tile Coded Class ==========================================
 class GymTiled(GymContS, TileCoder):
     def __init__(self, env_id, make=gym.make, **kw):
-        GymCont.__init__(self, env_id=env_id, make=make)
+        GymContS.__init__(self, env_id=env_id, make=make)
         if 'σ' in kw: self.σ = kw['σ']
         
         TileCoder.__init__(self, **kw)
