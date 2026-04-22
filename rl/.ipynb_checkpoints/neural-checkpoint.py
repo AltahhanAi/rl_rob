@@ -30,7 +30,8 @@ class nnMRP(MRP):
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  clipCNN=False,
                  clipModel=False,
-                 β_entropy=0.05,
+                 trunk_aF=F.relu,
+                 β_entropy=0.005,
                  optimiser=None,
                  **kw):
         self.model_summary = model_summary
@@ -42,6 +43,7 @@ class nnMRP(MRP):
         self.t_Vn      = t_Vn
         
         self.trunk      = trunk
+        self.trunk_aF   = trunk_aF # activation function for the trunk
         self.nF         = nF
         self.final_bias = final_bias
         
@@ -79,7 +81,7 @@ class nnMRP(MRP):
         self.action_dim = 1 if net_str == 'V' else self.env.nA
         
         model = model_class(
-            inp_dim=self.state_dim, trunk=self.trunk,
+            inp_dim=self.state_dim, trunk=self.trunk, trunk_aF=self.trunk_aF,
             nF=self.nF, out_dim=self.action_dim,
             α=self.α, 
             αv=getattr(self, 'αv', None), 

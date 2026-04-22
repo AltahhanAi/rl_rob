@@ -43,13 +43,13 @@ class Trace(list):
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', optimiser=None,
-                 final_bias=True, clipModel=False,  aF=F.relu, **kw): # aF is the activation functionfor the netwrok
+                 final_bias=True, clipModel=False,  trunk_aF=F.relu, **kw): # trunk_aF is the activation function for the trunk
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
         self.trunk = trunk
         self.nF = nF
-        self.aF = aF
+        self.trunk_aF = trunk_aF
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
         self.clipModel = clipModel # clip the weights of the model
         
@@ -97,8 +97,8 @@ class nnModel(nn.Module):
         
     def forward(self, x):
         for l, layer in enumerate(self.layers[:-1]):
-            x = self.aF(layer(x)) if l != self.flat_idx else layer(x)
-            # x = self.aF(layer(x), negative_slope=0.01) if l != self.flat_idx else layer(x) 
+            x = self.trunk_aF(layer(x)) if l != self.flat_idx else layer(x)
+            # x = self.trunk_aF(layer(x), negative_slope=0.01) if l != self.flat_idx else layer(x) 
         return self.layers[-1](x)    
 
     def clip_grads(self):
@@ -142,11 +142,11 @@ class nnModel(nn.Module):
         self.optim.step()
         self.optim.zero_grad()
     # --------------------------------------------------------------------------------------
-    def init_for_activation(self, layer, aF, bias_zero=True, negative_slope=0.01):
+    def init_for_activation(self, layer, trunk_aF, bias_zero=True, negative_slope=0.01):
         if not isinstance(layer, (nn.Linear, nn.Conv2d)):
             return
     
-        name = getattr(aF, "__name__", str(aF))
+        name = getattr(trunk_aF, "__name__", str(trunk_aF))
     
         if name == "relu":
             init.kaiming_normal_(layer.weight, nonlinearity="relu")
@@ -238,8 +238,8 @@ class nnModel(nn.Module):
 # ==================== Split head models for Dueling and Actor-Critic ===========================
 
 class nnSplitModel(nnModel):
-    def __init__(self, head1_dim, head2_dim, aF=F.elu, τ=1.0, **kw):
-        super().__init__(out_dim=head1_dim, aF=aF, **kw)
+    def __init__(self, head1_dim, head2_dim, trunk_aF=F.elu, τ=1.0, **kw):
+        super().__init__(out_dim=head1_dim, trunk_aF=trunk_aF, **kw)
         feat_in    = self.layers[-1].in_features
         self.layers = self.layers[:-1]                         # remove final layer
         self.head1  = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
@@ -250,7 +250,7 @@ class nnSplitModel(nnModel):
 
     def init_weights(self, head1_v0=None, head2_q0=None):
         for layer in self.layers[:self.head_idx]:
-            self.init_for_activation(layer, self.aF)
+            self.init_for_activation(layer, self.trunk_aF)
     
         for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
             if v0 is not None:
@@ -280,8 +280,8 @@ class nnSplitModel(nnModel):
        
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
-            x = self.aF(layer(x)) if l != self.flat_idx else layer(x) 
-            # x = self.aF(layer(x), negative_slope=0.01)if l != self.flat_idx else layer(x)
+            x = self.trunk_aF(layer(x)) if l != self.flat_idx else layer(x) 
+            # x = self.trunk_aF(layer(x), negative_slope=0.01)if l != self.flat_idx else layer(x)
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 
