@@ -81,8 +81,11 @@ class nnMRP(MRP):
         self.action_dim = 1 if net_str == 'V' else self.env.nA
         
         model = model_class(
-            inp_dim=self.state_dim, trunk=self.trunk, trunk_aF=self.trunk_aF,
-            nF=self.nF, out_dim=self.action_dim,
+            inp_dim=self.state_dim, 
+            trunk=self.trunk, 
+            trunk_aF=self.trunk_aF,
+            nF=self.nF, 
+            out_dim=self.action_dim,
             α=self.α, 
             αv=getattr(self, 'αv', None), 
             αq=getattr(self, 'αq', None),
@@ -187,7 +190,7 @@ class nnPG(PG(nnMDP)):
         # nnAC_SharedModel returns two parts: the V for the critic and Mu and sigma for the Actor
         # no need to initialise the w independently unless we don't want to share the same 
         # trunk between the actor and the critic
-        super().__init__(create_w=False, create_W=False, create_Wn=False, **kw)        
+        super().__init__(create_w=False, create_W=False, create_Wn=False, trunk_aF=F.elu, **kw)        
         self.wϴ = self.create_model(net_str='wϴ',  model_class=ac_model_class) # discrete actions
         self.policy = self.softmax
 
