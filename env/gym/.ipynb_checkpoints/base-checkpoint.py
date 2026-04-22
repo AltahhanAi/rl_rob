@@ -397,7 +397,7 @@ class GymContS(Gym):
 
 
 # ======================================= Normalised Continuous State ==========================================
-class GymContScaled(GymContS):
+class GymContGymScaled(GymContS):
     """Like GymContS, but rescales observations to [-1, 1] using `low`/`high` bounds."""
     def __init__(self, env_id, low, high, **kw):
         super().__init__(env_id=env_id, **kw)
@@ -409,9 +409,10 @@ class GymContScaled(GymContS):
         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
-GymCont = GymScaled = GymContScaled
+GymCont = GymContS
+GymScaled = GymContGymScaled
 
-class GymScaledShaped(GymContScaled):
+class GymScaledShaped(GymContGymScaled):
     def __init__(self, **kw):
         super().__init__(**{**MountainCar, **kw})
         self._last_F = 0.0
@@ -435,7 +436,7 @@ class GymScaledShaped(GymContScaled):
 
 # ======================================= Scaled/Normalised Sparse Reward ==========================================
 # reward 1 for reaching goal 0 everywhere
-class GymScaledSparse(GymContScaled):
+class GymScaledSparse(GymContGymScaled):
     def __init__(self, **kw):
         super().__init__(**{**MountainCar, **kw})
 
