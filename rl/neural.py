@@ -31,7 +31,7 @@ class nnMRP(MRP):
                  clipCNN=False,
                  clipModel=False,
                  trunk_aF=F.relu,
-                 β_entropy=0.005,
+                 β_entropy=0.003,
                  optimiser=None,
                  **kw):
         self.model_summary = model_summary
@@ -89,7 +89,7 @@ class nnMRP(MRP):
             αt=getattr(self, 'αt', None),
             σ=getattr(self, 'σ', 1),
             τ=getattr(self, 'τ', 1.0),
-            β_entropy=getattr(self, 'β_entropy', 0.01),
+            β_entropy=getattr(self, 'β_entropy', 0.003),
             net_str=net_str, final_bias=self.final_bias,
             clipModel=self.clipModel or self.clipCNN,
             optimiser=self.optimiser,

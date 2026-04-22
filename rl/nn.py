@@ -304,7 +304,7 @@ class nnDuelModel(nnSplitModel):
 
 # ================================= Vanilla Actor-Critic =======================================
 class nnACSharedModel(nnSplitModel):
-    def __init__(self, out_dim, αv, αq, αt=None, τ=1.0, β_entropy=0.01, **kw):
+    def __init__(self, out_dim, αv, αq, αt=None, τ=1.0, β_entropy=0.003, **kw):
         super().__init__(head1_dim=1, head2_dim=out_dim, **kw)
         self.β_entropy = β_entropy
         self.αv, self.αq = αv, αq
