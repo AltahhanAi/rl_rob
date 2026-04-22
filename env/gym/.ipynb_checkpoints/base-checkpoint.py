@@ -368,51 +368,18 @@ class Gym(gym.Wrapper):
 class GymContS(Gym):
     """
     Suitable for continuous/structured observation spaces (Box, Dict, Tuple).
-    This class flattens the observation and hence is **not suitable for games using pixels**.
-
-    Optionally rescales observations to [-1, 1] using provided `low` / `high`
-    or the environment's Box bounds.
+    This class flatten the observation and hence is **not suitable for games which uses pixles**
     """
-    def __init__(
-        self,
-        env_id="CartPole-v1",
-        make=gym.make,
-        render_mode="rgb_array",
-        scale_obs=True,
-        low=None,
-        high=None,
-        **kw
-    ):
+    def __init__(self, env_id="CartPole-v1", make=gym.make, render_mode="rgb_array", **kw):
         super().__init__(env_id=env_id, make=make, render_mode=render_mode)
 
         self.obs_space = self.observation_space
-        self.act_space = self.action_space
 
-        # flattened observation dimension
+        # For continuous/structured observations, nS should be the flattened dim
         self.nS = flatdim(self.obs_space)
 
-        self.scale_obs = scale_obs
-        self._mid = None
-        self._half = None
-
-        if self.scale_obs:
-            if low is None or high is None:
-                if isinstance(self.obs_space, spaces.Box):
-                    low = self.obs_space.low
-                    high = self.obs_space.high
-                else:
-                    raise ValueError(
-                        "For Dict/Tuple observations, `low` and `high` must be provided explicitly."
-                    )
-
-            low = np.asarray(low, dtype=np.float32)
-            high = np.asarray(high, dtype=np.float32)
-
-            self._mid = (high + low) / 2.0
-            self._half = (high - low) / 2.0
-
-            # avoid divide-by-zero
-            self._half = np.where(self._half == 0, 1.0, self._half)
+        # For actions, keep base attributes:
+        self.act_space = self.action_space
 
     def check_env(self, env_id):
         common = ["CartPole-v1", "MountainCar-v0", "Acrobot-v1", "Pendulum-v1"]
@@ -422,65 +389,29 @@ class GymContS(Gym):
             print("warning: observation_space is Discrete; you may want gymenv_discrete instead.")
 
     def _proc_obs(self, obs):
-        obs = flatten(self.obs_space, obs).astype(np.float32)
-
-        if self.scale_obs:
-            obs = (obs - self._mid) / self._half
-
-        return obs
-
+        return flatten(self.obs_space, obs)
+        
     def _proc_action(self, a):
         # IMPORTANT: continuous-class environments should NOT inherit gridworld action remapping.
         return a
-        
-# class GymContS(Gym):
-#     """
-#     Suitable for continuous/structured observation spaces (Box, Dict, Tuple).
-#     This class flatten the observation and hence is **not suitable for games which uses pixles**
-#     """
-#     def __init__(self, env_id="CartPole-v1", make=gym.make, render_mode="rgb_array", **kw):
-#         super().__init__(env_id=env_id, make=make, render_mode=render_mode)
-
-#         self.obs_space = self.observation_space
-
-#         # For continuous/structured observations, nS should be the flattened dim
-#         self.nS = flatdim(self.obs_space)
-
-#         # For actions, keep base attributes:
-#         self.act_space = self.action_space
-
-#     def check_env(self, env_id):
-#         common = ["CartPole-v1", "MountainCar-v0", "Acrobot-v1", "Pendulum-v1"]
-#         if env_id not in common:
-#             print("note: env not in common list; wrapper still works if observation_space is Box/Dict/Tuple.")
-#         if isinstance(self.observation_space, spaces.Discrete):
-#             print("warning: observation_space is Discrete; you may want gymenv_discrete instead.")
-
-#     def _proc_obs(self, obs):
-#         return flatten(self.obs_space, obs)
-        
-#     def _proc_action(self, a):
-#         # IMPORTANT: continuous-class environments should NOT inherit gridworld action remapping.
-#         return a
 
 
-# # ======================================= Normalised Continuous State ==========================================
-# class GymContGymScaled(GymContS):
-#     """Like GymContS, but rescales observations to [-1, 1] using `low`/`high` bounds."""
-#     def __init__(self, env_id, low, high, **kw):
-#         super().__init__(env_id=env_id, **kw)
-#         low, high  = np.asarray(low, dtype=np.float32), np.asarray(high, dtype=np.float32)
-#         self._mid  = (high + low) / 2
-#         self._half = (high - low) / 2
+# ======================================= Normalised Continuous State ==========================================
+class GymContScaled(GymContS):
+    """Like GymContS, but rescales observations to [-1, 1] using `low`/`high` bounds."""
+    def __init__(self, env_id, low, high, **kw):
+        super().__init__(env_id=env_id, **kw)
+        low, high  = np.asarray(low, dtype=np.float32), np.asarray(high, dtype=np.float32)
+        self._mid  = (high + low) / 2
+        self._half = (high - low) / 2
 
-#     def _proc_obs(self, obs):
-#         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
+    def _proc_obs(self, obs):
+        return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
+GymCont = GymScaled = GymContScaled
 
-GymScaled = GymCont = GymContS
-
-class GymScaledShaped(GymScaled):
+class GymScaledShaped(GymContGymScaled):
     def __init__(self, **kw):
         super().__init__(**{**MountainCar, **kw})
         self._last_F = 0.0
@@ -504,7 +435,7 @@ class GymScaledShaped(GymScaled):
 
 # ======================================= Scaled/Normalised Sparse Reward ==========================================
 # reward 1 for reaching goal 0 everywhere
-class GymScaledSparse(GymScaled):
+class GymScaledSparse(GymContGymScaled):
     def __init__(self, **kw):
         super().__init__(**{**MountainCar, **kw})
 
