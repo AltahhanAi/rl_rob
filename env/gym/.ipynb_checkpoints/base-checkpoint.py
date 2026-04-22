@@ -401,14 +401,12 @@ class GymContGymScaled(GymContS):
     """Like GymContS, but rescales observations to [-1, 1] using `low`/`high` bounds."""
     def __init__(self, env_id, low, high, **kw):
         super().__init__(env_id=env_id, **kw)
-        # if low is None and high is None: return
-        self.low, self.high  = np.asarray(low, dtype=np.float32), np.asarray(high, dtype=np.float32)
-        self._mid  = (self.high + self.low) / 2
-        self._half = (self.high - self.low) / 2
+        low, high  = np.asarray(low, dtype=np.float32), np.asarray(high, dtype=np.float32)
+        self._mid  = (high + low) / 2
+        self._half = (high - low) / 2
 
     def _proc_obs(self, obs):
-        x = super()._proc_obs(obs).astype(np.float32)
-        return (x - self._mid) / self._half #if not(self.low is None and self.high is None) else x
+        return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
 GymCont = GymContS
