@@ -66,7 +66,7 @@ class nnModel(nn.Module):
         # default optimiser is Adam unless the model is linear, which means we want to test for exact alignment  
         if optimiser is None:
             # self.optimiser = optim.Adam if not self.linear_compatible() else optim.SGD
-            self.optimiser = optim.Adam if self.CNN else optim.SGD
+            self.optimiser = optim.Adam if self.CNN or not self.linear_compatible() else optim.SGD
             
         else: self.optimiser = optimiser
     
@@ -283,7 +283,7 @@ class nnSplitModel(nnModel):
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
-            x = F.elu(layer(x)) if l != self.flat_idx else layer(x) 
+            x = F.relu(layer(x)) if l != self.flat_idx else layer(x) 
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 

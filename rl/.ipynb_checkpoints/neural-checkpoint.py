@@ -61,7 +61,8 @@ class nnMRP(MRP):
         self.β_entropy = β_entropy
         
         # clipCNN is redundant and can be replaced by clipModel
-        self.clipModel = clipModel = self.clipCNN = clipCNN # priority is for clipCNN
+        self.clipModel = clipModel 
+        self.clipCNN = clipCNN # kept for compatibility, should be removed later
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
         self.optimiser = optimiser
@@ -88,7 +89,7 @@ class nnMRP(MRP):
             τ=getattr(self, 'τ', 1.0),
             β_entropy=getattr(self, 'β_entropy', 0.01),
             net_str=net_str, final_bias=self.final_bias,
-            clipCNN=self.clipCNN,
+            clipModel=self.clipModel or self.clipCNN
             optimiser=self.optimiser
         )
         if self.model_summary: model.print_model_summary(net_str)
@@ -568,7 +569,7 @@ class nnActor_Critic(nnPG):
         Gt = self.γ * Vn + rn.squeeze(-1) 
 
         self.wϴ.fit(s, a, Gt,  γt=self.γt)
-        self.γt *= self.γ  
+        # self.γt *= self.γ  # dropped to promote stability
 
 # ===============================================================================================        
 def AC(base=nnPG, name='nnActor_Critic'):
