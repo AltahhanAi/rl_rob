@@ -411,7 +411,7 @@ class GymContScaled(GymContS):
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
 GymCont = GymScaled = GymContScaled
 
-class GymScaledShaped(GymContGymScaled):
+class GymScaledShaped(GymContScaled):
     def __init__(self, **kw):
         super().__init__(**{**MountainCar, **kw})
         self._last_F = 0.0
@@ -435,7 +435,7 @@ class GymScaledShaped(GymContGymScaled):
 
 # ======================================= Scaled/Normalised Sparse Reward ==========================================
 # reward 1 for reaching goal 0 everywhere
-class GymScaledSparse(GymContGymScaled):
+class GymScaledSparse(GymContScaled):
     def __init__(self, **kw):
         super().__init__(**{**MountainCar, **kw})
 
