@@ -68,7 +68,7 @@ This class returns an index for each state observation.
 #         return self.discretise(obs)
 
 
-class GymDiscreteS(GymCont, Discretise):
+class GymDiscreteS(GymContS, Discretise):
     def __init__(self, env_id, make=gym.make, feature_indices=None, **kw):
         GymCont.__init__(self, env_id=env_id, make=make)
         Discretise.__init__(self, **kw)  # feature_indices already consumed, won't leak

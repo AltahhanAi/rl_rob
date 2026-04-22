@@ -101,7 +101,7 @@ class TileCoder:
         return phi
         
 # ========================================= Gym Env Tile Coded Class ==========================================
-class GymTiled(GymCont, TileCoder):
+class GymTiled(GymContS, TileCoder):
     def __init__(self, env_id, make=gym.make, **kw):
         GymCont.__init__(self, env_id=env_id, make=make)
         if 'σ' in kw: self.σ = kw['σ']
