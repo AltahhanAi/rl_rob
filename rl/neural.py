@@ -89,8 +89,8 @@ class nnMRP(MRP):
             τ=getattr(self, 'τ', 1.0),
             β_entropy=getattr(self, 'β_entropy', 0.01),
             net_str=net_str, final_bias=self.final_bias,
-            clipModel=self.clipModel or self.clipCNN
-            optimiser=self.optimiser
+            clipModel=self.clipModel or self.clipCNN,
+            optimiser=self.optimiser,
         )
         if self.model_summary: model.print_model_summary(net_str)
         return model
