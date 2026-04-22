@@ -411,7 +411,8 @@ class GymContGymScaled(GymContS):
         return (x - self._mid) / self._half if not(self.low is None and self.high is None) else x
 
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
-GymCont = GymScaled = GymContGymScaled
+GymCont = GymContS
+GymScaled = GymContGymScaled
 
 class GymScaledShaped(GymContGymScaled):
     def __init__(self, **kw):
