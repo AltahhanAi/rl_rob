@@ -409,8 +409,7 @@ class GymContGymScaled(GymContS):
         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
-GymCont = GymContS
-GymScaled = GymContGymScaled
+GymCont = GymScaled = GymContGymScaled
 
 class GymScaledShaped(GymContGymScaled):
     def __init__(self, **kw):
