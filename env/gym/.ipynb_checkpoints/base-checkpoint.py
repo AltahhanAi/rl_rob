@@ -378,7 +378,7 @@ class GymContS(Gym):
         env_id="CartPole-v1",
         make=gym.make,
         render_mode="rgb_array",
-        scale_obs=False,
+        scale_obs=True,
         low=None,
         high=None,
         **kw
@@ -477,8 +477,8 @@ class GymContS(Gym):
 #         return (super()._proc_obs(obs).astype(np.float32) - self._mid) / self._half
 
 # ======================================= Scaled/Normalised Shaped Reward ==========================================
-GymCont = GymContS
-GymScaled = GymContGymScaled
+
+GymScaled = GymCont = GymContS
 
 class GymScaledShaped(GymContGymScaled):
     def __init__(self, **kw):
