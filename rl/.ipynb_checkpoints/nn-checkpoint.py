@@ -43,12 +43,13 @@ class Trace(list):
 # ================================== NN Infrastructure ==========================================
 class nnModel(nn.Module):
     def __init__(self, inp_dim, trunk=[(8, 4, 2), (4, 4, 4)], nF=32, out_dim=3, α=1e-4, τ=1.0, net_str='', optimiser=None,
-                 final_bias=True, clipModel=False,  **kw): 
+                 final_bias=True, clipModel=False,  aF=F.relu, **kw): # aF is the activation functionfor the netwrok
         super().__init__()
         self.layers = nn.ModuleList()
         self.final_bias = final_bias
         self.trunk = trunk
         self.nF = nF
+        self.aF = aF
         self.CNN = any(isinstance(h, tuple) and len(h) > 1 for h in trunk)
         self.clipModel = clipModel # clip the weights of the model
         
@@ -96,9 +97,8 @@ class nnModel(nn.Module):
         
     def forward(self, x):
         for l, layer in enumerate(self.layers[:-1]):
-            # x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
-            x = F.leaky_relu(layer(x), negative_slope=0.01) if l != self.flat_idx else layer(x)
-            
+            x = self.aF(layer(x)) if l != self.flat_idx else layer(x)
+            # x = self.aF(layer(x), negative_slope=0.01) if l != self.flat_idx else layer(x) 
         return self.layers[-1](x)    
 
     def clip_grads(self):
@@ -142,10 +142,34 @@ class nnModel(nn.Module):
         self.optim.step()
         self.optim.zero_grad()
     # --------------------------------------------------------------------------------------
+    def init_for_activation(self, layer, aF, bias_zero=True, negative_slope=0.01):
+        if not isinstance(layer, (nn.Linear, nn.Conv2d)):
+            return
     
-    def init_weights(self, head_v0=None, skip_from=None):
+        name = getattr(aF, "__name__", str(aF))
+    
+        if name == "relu":
+            init.kaiming_normal_(layer.weight, nonlinearity="relu")
+        elif name == "leaky_relu":
+            init.kaiming_normal_(layer.weight, a=negative_slope, nonlinearity="leaky_relu")
+        elif name == "elu":
+            # no official 'elu' mode in kaiming_normal_, so use relu-style He init
+            init.kaiming_normal_(layer.weight, nonlinearity="relu")
+        elif name == "tanh":
+            gain = init.calculate_gain("tanh")
+            init.xavier_normal_(layer.weight, gain=gain)
+        elif name == "sigmoid":
+            gain = init.calculate_gain("sigmoid")
+            init.xavier_normal_(layer.weight, gain=gain)
+        else:
+            # safe fallback
+            init.xavier_normal_(layer.weight, gain=1.0)
+    
+        if bias_zero and layer.bias is not None:
+            init.zeros_(layer.bias)
+
         
-        gain = init.calculate_gain('relu')
+    def init_weights(self, head_v0=None, skip_from=None):
         
         for i, layer in enumerate(self.layers):
             if isinstance(layer, (nn.Linear, nn.Conv2d)):
@@ -155,10 +179,8 @@ class nnModel(nn.Module):
                 if head_v0 is not None and is_head:
                     init.constant_(layer.weight, head_v0)
                 else:
-                    init.xavier_normal_(layer.weight, gain=gain)
-                if layer.bias is not None:
-                    init.zeros_(layer.bias)
-                    
+                    self.init_for_activation(layer, self.aF)
+
         self.optim = self.optimiser(self.parameters(), lr=self.α)
 
     def load_weights(self, net_str):
@@ -216,8 +238,8 @@ class nnModel(nn.Module):
 # ==================== Split head models for Dueling and Actor-Critic ===========================
 
 class nnSplitModel(nnModel):
-    def __init__(self, head1_dim, head2_dim,  τ=1.0, **kw):
-        super().__init__(out_dim=head1_dim, **kw)
+    def __init__(self, head1_dim, head2_dim, aF=F.elu, τ=1.0, **kw):
+        super().__init__(out_dim=head1_dim, aF=aF, **kw)
         feat_in    = self.layers[-1].in_features
         self.layers = self.layers[:-1]                         # remove final layer
         self.head1  = nn.Linear(feat_in, head1_dim, bias=self.final_bias)
@@ -227,48 +249,39 @@ class nnSplitModel(nnModel):
         self.head_idx = len(self.layers) - 2                   # index where heads start
 
     def init_weights(self, head1_v0=None, head2_q0=None):
-        gain_trunk = init.calculate_gain('tanh')    # matches the trunk activation
-        gain_head  = init.calculate_gain('linear')  # heads are linear outputs
-    
-        # --- trunk ---
         for layer in self.layers[:self.head_idx]:
-            if isinstance(layer, (nn.Linear, nn.Conv2d)):
-                init.xavier_normal_(layer.weight, gain=gain_trunk)
-                if layer.bias is not None:
-                    init.zeros_(layer.bias)
+            self.init_for_activation(layer, self.aF)
     
-        # --- heads ---
         for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
             if v0 is not None:
                 init.constant_(head.weight, v0)
             elif head is self.head2 and isinstance(self, nnACSharedModel):
-                init.orthogonal_(head.weight, gain=0.01)   # near-uniform initial policy
+                init.orthogonal_(head.weight, gain=0.01)
             else:
-                init.xavier_normal_(head.weight, gain=gain_head)
+                init.xavier_normal_(head.weight, gain=1.0)
+    
             if head.bias is not None:
                 init.zeros_(head.bias)
     
-        # --- optimiser ----
         αv = getattr(self, 'αv', None)
         αq = getattr(self, 'αq', None)
-        αt = getattr(self, 'αt', αv)   # falls back to αv if αt not set
+        αt = getattr(self, 'αt', αv)
     
         if αv is not None and αq is not None:
-            trunk_params = [p for layer in self.layers[:self.head_idx]
-                              for p in layer.parameters()]
+            trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
             groups = [
-                {'params': trunk_params,                  'lr': αt},  # trunk
-                {'params': list(self.head1.parameters()), 'lr': αv},  # critic head
-                {'params': list(self.head2.parameters()), 'lr': αq},  # actor head
+                {'params': trunk_params, 'lr': αt},
+                {'params': list(self.head1.parameters()), 'lr': αv},
+                {'params': list(self.head2.parameters()), 'lr': αq},
             ]
             self.optim = self.optimiser(groups)
-        else: self.optim = self.optimiser(self.parameters(), lr=self.α)
-                 
-            
+        else:
+            self.optim = self.optimiser(self.parameters(), lr=self.α)
+       
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
-            # x = F.elu(layer(x)) if l != self.flat_idx else layer(x) 
-             x = F.leaky_relu(layer(x), negative_slope=0.01)if l != self.flat_idx else layer(x)
+            x = self.aF(layer(x)) if l != self.flat_idx else layer(x) 
+            # x = self.aF(layer(x), negative_slope=0.01)if l != self.flat_idx else layer(x)
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 

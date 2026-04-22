@@ -30,7 +30,7 @@ class nnMRP(MRP):
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  clipCNN=False,
                  clipModel=False,
-                 β_entropy=0.01,
+                 β_entropy=0.05,
                  optimiser=None,
                  **kw):
         self.model_summary = model_summary
