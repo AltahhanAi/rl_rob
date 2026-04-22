@@ -49,24 +49,6 @@ class Discretise:
         return x
 
 # =============================== Discretised State Space Gym Env ===========================================
-'''
-This class returns an index for each state observation.
-'''
-# class GymDiscreteS(GymCont, Discretise):
-
-#     def __init__(self, env_id, make=gym.make, **kw):
-#         # force flattening: we want a predictable (4,) vector before discretising
-#         GymCont.__init__(self, env_id=env_id, make=make)
-#         Discretise.__init__(self, **kw)
-#         # Override nS: discrete state count for tabular algorithms
-#         self.nS = int(np.prod(self.n_bins))
-        
-#     def _proc_obs(self, obs):
-#         """
-#         raw obs -> flat float vector -> clip -> normalise -> discretise -> int state id
-#         """
-#         return self.discretise(obs)
-
 
 class GymDiscreteS(GymContS, Discretise):
     def __init__(self, env_id, make=gym.make, feature_indices=None, **kw):

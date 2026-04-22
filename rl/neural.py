@@ -520,7 +520,7 @@ class nnREINFORCE(nnPG):
             γt /= self.γ if self.γ != 0 else 1
 # ============================= needs verfying========================================
 '''
-collect the Gt and samples and then batch updat them
+collect the Gt and samples and then batch update them
 '''
 class nnREINFORCE__(nnPG):
     def init(self):
@@ -702,7 +702,7 @@ def PPO(base=nnPG, model=nnACEpochModel, name='nnPPO'):
 
         # ---------------------------- 🌗 GAE: generalised advantage estimation --------------
         def GAE(self, rn, Vo, Vn, dones):
-            """Generalised Advantage Estimation.   A_t = δ_t + γλ(1 - d_t)·A_{t+1}"""
+            """ Generalised Advantage Estimation.   A_t = δ_t + γλ(1 - d_t)·A_{t+1}"""
             n      = len(rn)
             A, gae = torch.zeros(n), torch.tensor(0.0)
             for t in reversed(range(n)):

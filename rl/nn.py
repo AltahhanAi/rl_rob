@@ -96,7 +96,9 @@ class nnModel(nn.Module):
         
     def forward(self, x):
         for l, layer in enumerate(self.layers[:-1]):
-            x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+            # x = F.relu(layer(x)) if l != self.flat_idx else layer(x)
+            x = F.leaky_relu(layer(x), negative_slope=0.01) if l != self.flat_idx else layer(x)
+            
         return self.layers[-1](x)    
 
     def clip_grads(self):
@@ -261,29 +263,12 @@ class nnSplitModel(nnModel):
             ]
             self.optim = self.optimiser(groups)
         else: self.optim = self.optimiser(self.parameters(), lr=self.α)
-            
-                    
-    # def init_weights(self, head1_v0=None, head2_q0=None):
-    #     super().init_weights(skip_from=self.head_idx)
-    #     gain = init.calculate_gain('relu')
-    #     for head, v0 in [(self.head1, head1_v0), (self.head2, head2_q0)]:
-    #         init.constant_(head.weight, v0) if v0 is not None else init.xavier_normal_(head.weight, gain=gain)
-    #         if head.bias is not None: init.zeros_(head.bias)
-    #     αv = getattr(self, 'αv', None)
-    #     αq = getattr(self, 'αq', None)
-    #     αt = getattr(self, 'αt', αv)             # falls back to αv if αt not set
-    #     if αv is not None and αq is not None:
-    #         trunk_params = [p for layer in self.layers[:self.head_idx] for p in layer.parameters()]
-    #         groups = [
-    #             {'params': trunk_params,                              'lr': αt},  # trunk
-    #             {'params': list(self.head1.parameters()),             'lr': αv},  # critic head
-    #             {'params': list(self.head2.parameters()),             'lr': αq},  # actor head
-    #         ]
-    #         self.optim = self.optimiser(groups)           
+                 
             
     def forward(self, x):
         for l, layer in enumerate(self.layers[:self.head_idx]):
-            x = F.elu(layer(x)) if l != self.flat_idx else layer(x) 
+            # x = F.elu(layer(x)) if l != self.flat_idx else layer(x) 
+             x = F.leaky_relu(layer(x), negative_slope=0.01)if l != self.flat_idx else layer(x)
         self._trunk_out = x
         return self.head1(x), self.head2(x)
 
@@ -313,9 +298,17 @@ class nnACSharedModel(nnSplitModel):
         self.αt = αt if αt is not None else αv
         self.τ  = τ
 
+    def entropy(self, π):
+        logp = F.log_softmax(self._scaled_logits, dim=-1)
+        p    = logp.exp()
+        return -(p * logp).sum(dim=-1)
+    
+    ''' cache for stable log/entropy, but risky, entropy(π) depends on it. 
+        It's better for numerical stability to avoid the return torch.log(π[range(len(a)), a] + 1e-8) for logπ
+    '''
     def forward(self, x):
         V, logits = super().forward(x)
-        self._scaled_logits = logits / self.τ        # cache for stable log/entropy
+        self._scaled_logits = logits / self.τ        
         return V, F.softmax(self._scaled_logits, dim=-1)
 
     def Vπ(self, s):
@@ -327,13 +320,8 @@ class nnACSharedModel(nnSplitModel):
         logp = F.log_softmax(self._scaled_logits, dim=-1)
         return logp[range(len(a)), a]
 
-    def entropy(self, π):
-        logp = F.log_softmax(self._scaled_logits, dim=-1)
-        p    = logp.exp()
-        # print('entropy', self.β_entropy )
-        return -(p * logp).sum(dim=-1)
-
-
+    # def entropy(self, π):
+    #     return -(π * torch.log(π + 1e-8)).sum(dim=-1)
     
     # def forward(self, x):
     #     V, logits = super().forward(x)
@@ -345,9 +333,6 @@ class nnACSharedModel(nnSplitModel):
     
     # def logπ(self, π, a):
     #     return torch.log(π[range(len(a)), a] + 1e-8)
-
-    # def entropy(self, π):
-    #     return -(π * torch.log(π + 1e-8)).sum(dim=-1)
 
     # ---------- the three update signals (mirror the classical AC algorithm) ----------
     def Δlogπ(self, A, logπ, γt=1.0, **kw):

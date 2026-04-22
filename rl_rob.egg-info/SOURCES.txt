@@ -12,13 +12,12 @@ env/gym/discretised.py
 env/gym/games.py
 env/gym/tiled.py
 env/gym/tiled_disc_action.py
-env/gym/tilednew.py
 rl/base.py
+rl/base_old.py
 rl/dp.py
 rl/linear.py
 rl/mdp_model.py
 rl/neural.py
-rl/nn.py
 rl/select.py
 rl/tabular.py
 rl_rob.egg-info/PKG-INFO
