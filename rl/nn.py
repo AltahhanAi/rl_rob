@@ -258,7 +258,7 @@ class nnSplitModel(nnModel):
             elif head is self.head2 and isinstance(self, nnACSharedModel):
                 init.orthogonal_(head.weight, gain=0.01)
             else:
-                init.xavier_normal_(head.weight, gain=1.0)
+                init.orthogonal_(head.weight, gain=1.0) # xavier_normal_ or orthogonal_
     
             if head.bias is not None:
                 init.zeros_(head.bias)
