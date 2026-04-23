@@ -186,7 +186,7 @@ class nnMDP(MDP(nnMRP)):
 
 # ===============================================================================================
 class nnPG(PG(nnMDP)):
-    def __init__(self, ac_model_class=nnACSharedModel, trunk_aF=F.elu, **kw):
+    def __init__(self, ac_model_class=nnACSharedModel, trunk_aF=F.tanh, **kw):
         # nnAC_SharedModel returns two parts: the V for the critic and Mu and sigma for the Actor
         # no need to initialise the w independently unless we don't want to share the same 
         # trunk between the actor and the critic
