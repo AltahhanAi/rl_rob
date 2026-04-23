@@ -112,6 +112,7 @@ Acrobot = {
     'hash_size': 16384,
 }
 
+
 LunarLander = {
     'env_id': 'LunarLander-v3',
 
@@ -124,13 +125,14 @@ LunarLander = {
         (-0.2, 1.5),   # y height
         (-2.0, 2.0),   # horizontal velocity
         (-2.0, 2.0),   # vertical velocity
-        (-1.5, 1.5),   # angle
+        (-3.14, 3.14)  #(-1.5, 1.5),   # angle
         (-3.0, 3.0),   # angular velocity
         (0.0, 1.0),    # left leg contact
         (0.0, 1.0),    # right leg contact
     ),
 
-    'scale': (1.5, 1.5, 2.0, 2.0, 1.5, 3.0, 1.0, 1.0),
+    # 'scale': (1.5, 1.5, 2.0, 2.0, 1.5, 3.0, 1.0, 1.0),
+    'scale': (1.5, 1.5, 2.0, 2.0, 3.14, 3.0, 1.0, 1.0),  # π for angle
 
     # tile coding related..........................
     'low': (-1.5, -0.2, -2.0, -2.0, -1.5, -3.0, 0.0, 0.0),
