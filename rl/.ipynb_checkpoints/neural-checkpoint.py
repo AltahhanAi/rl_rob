@@ -31,7 +31,7 @@ class nnMRP(MRP):
                  clipCNN=False,
                  clipModel=False,
                  trunk_aF=F.relu,
-                 β_entropy=0.003,
+                 β_entropy=0.01,
                  optimiser=None,
                  **kw):
         self.model_summary = model_summary
