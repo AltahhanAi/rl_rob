@@ -32,5 +32,5 @@ def count_notebook_words(nb_path=None):
 
 
 # Usage:
-count_notebook_words()                      # auto-detects latest notebook
+# count_notebook_words()                      # auto-detects latest notebook
 # count_notebook_words("my_notebook.ipynb") # or specify a file
