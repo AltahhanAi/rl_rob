@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 def count_notebook_words(nb_path=None):
-    """Count words in code and markdown cells of a Jupyter notebook.
+    '''Count words in code and markdown cells of a Jupyter notebook.
     
     Args:
         nb_path: Path to .ipynb file. If None, uses the most recently
@@ -10,7 +10,8 @@ def count_notebook_words(nb_path=None):
     
     Returns:
         dict with 'code', 'markdown', and 'total' word counts.
-    """
+    '''
+    
     if nb_path is None:
         nb_path = max(Path('.').glob('*.ipynb'), key=lambda p: p.stat().st_mtime)
     
@@ -32,5 +33,5 @@ def count_notebook_words(nb_path=None):
 
 
 # Usage:
-# count_notebook_words()                      # auto-detects latest notebook
+# count_notebook_words()                    # auto-detects latest notebook
 # count_notebook_words("my_notebook.ipynb") # or specify a file
