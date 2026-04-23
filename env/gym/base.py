@@ -125,7 +125,7 @@ LunarLander = {
         (-0.2, 1.5),   # y height
         (-2.0, 2.0),   # horizontal velocity
         (-2.0, 2.0),   # vertical velocity
-        (-3.14, 3.14)  #(-1.5, 1.5),   # angle
+        (-3.14, 3.14),  #(-1.5, 1.5),   # angle
         (-3.0, 3.0),   # angular velocity
         (0.0, 1.0),    # left leg contact
         (0.0, 1.0),    # right leg contact
