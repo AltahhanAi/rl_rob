@@ -179,7 +179,7 @@ class nnModel(nn.Module):
                 if head_v0 is not None and is_head:
                     init.constant_(layer.weight, head_v0)
                 else:
-                    self.init_for_activation(layer, self.aF)
+                    self.init_for_activation(layer, self.trunk_aF)
 
         self.optim = self.optimiser(self.parameters(), lr=self.α)
 
