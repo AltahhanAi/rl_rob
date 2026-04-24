@@ -69,7 +69,13 @@ class nnMRP(MRP):
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
         self.optimiser = optimiser
         
-
+    def set_seed(self, seed=None, **kw):
+        if seed is not None: 
+            np.random.seed(seed)
+            random.seed(seed)
+            self.env.reset(seed=self.seed)
+            torch.manual_seed(seed) # this added for reproducibility
+            
     def init_(self):
         torch.manual_seed(self.seed)
         self.w.load_weights('V') if self.load_weights_ else self.w.init_weights(head_v0=self.v0)

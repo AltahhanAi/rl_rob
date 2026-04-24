@@ -40,7 +40,7 @@ from rl.dp import *
 import pickle
 from pathlib import Path
 import traceback
-import torch
+
 # ==============================================Base class for prediction =============================================
 '''
     All other RL classes will inherit from this class.
@@ -114,7 +114,6 @@ class MRP:
         if seed is not None: 
             np.random.seed(seed)
             random.seed(seed)
-            torch.manual_seed(seed)
             self.env.reset(seed=self.seed)      
     #-------------------------------------------buffer related-------------------------------------------------
     # The buffer gets reinitialised by reinitialising t only, but we have to be careful not to exceed t+1 at any time
