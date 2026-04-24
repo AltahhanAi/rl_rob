@@ -68,7 +68,6 @@ class nnModel(nn.Module):
         if optimiser is None:
             # self.optimiser = optim.Adam if not self.linear_compatible() else optim.SGD
             self.optimiser = optim.Adam if self.CNN or not self.linear_compatible() else optim.SGD
-            
         else: self.optimiser = optimiser
     
     # useful for testing exact alignment with linear models such as vTD, vQlearn, vActor_Critic, etc.
@@ -258,7 +257,7 @@ class nnSplitModel(nnModel):
             elif head is self.head2 and isinstance(self, nnACSharedModel):
                 init.orthogonal_(head.weight, gain=0.01)
             else:
-                init.orthogonal_(head.weight, gain=1.0) # xavier_normal_ or orthogonal_
+                init.xavier_normal_(head.weight, gain=1.0) # xavier_normal_ or orthogonal_
     
             if head.bias is not None:
                 init.zeros_(head.bias)

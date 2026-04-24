@@ -65,7 +65,8 @@ class nnMRP(MRP):
         # clipCNN is redundant and can be replaced by clipModel
         self.clipModel = clipModel 
         self.clipCNN = clipCNN # kept for compatibility, should be removed later
-        self.optimiser = optimiser
+        self.optimiser = optimiser # must be done before create_model
+        
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
         

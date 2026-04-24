@@ -30,9 +30,9 @@ class nnMRP(MRP):
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  clipCNN=False,
                  clipModel=False,
-                 trunk_aF=F.relu,
                  β_entropy=0.01,
                  optimiser=None,
+                 trunk_aF=F.relu,
                  **kw):
         self.model_summary = model_summary
         print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------') if model_summary else None
@@ -65,7 +65,8 @@ class nnMRP(MRP):
         # clipCNN is redundant and can be replaced by clipModel
         self.clipModel = clipModel 
         self.clipCNN = clipCNN # kept for compatibility, should be removed later
-        self.optimiser = optimiser
+        self.optimiser = optimiser # must be done before create_model
+        
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
         self.wn = self.create_model('Vn', self.model_class) if create_wn else None
         
