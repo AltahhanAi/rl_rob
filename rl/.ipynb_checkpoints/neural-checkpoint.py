@@ -30,9 +30,9 @@ class nnMRP(MRP):
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  clipCNN=False,
                  clipModel=False,
-                 trunk_aF=F.relu,
-                 β_entropy=0.01,
+                 β_entropy=0.003,
                  optimiser=None,
+                 trunk_aF=F.relu,
                  **kw):
         self.model_summary = model_summary
         print(f'------------------- 易  {self.__class__.__name__} is being set up 易 ---------------------') if model_summary else None

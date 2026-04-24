@@ -30,7 +30,7 @@ class nnMRP(MRP):
                  model_class=nnModel, # which type of neural network model from nn.py to create
                  clipCNN=False,
                  clipModel=False,
-                 β_entropy=0.01,
+                 β_entropy=0.003,
                  optimiser=None,
                  trunk_aF=F.relu,
                  **kw):
