@@ -35,3 +35,10 @@ def count_notebook_words(nb_path=None):
 # Usage:
 # count_notebook_words()                    # auto-detects latest notebook
 # count_notebook_words("my_notebook.ipynb") # or specify a file
+
+
+def check(SHA):
+    import subprocess
+    out = subprocess.check_output(["git","-C",".","log","-1","--oneline"], text=True).strip()
+    print("you are on the latest version" if out.startswith(SHA) else f"wrong version: {out}")
+
