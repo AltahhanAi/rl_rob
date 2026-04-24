@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-import subprocess
 
 def count_notebook_words(nb_path=None):
     '''Count words in code and markdown cells of a Jupyter notebook.
@@ -36,9 +35,3 @@ def count_notebook_words(nb_path=None):
 # Usage:
 # count_notebook_words()                    # auto-detects latest notebook
 # count_notebook_words("my_notebook.ipynb") # or specify a file
-
-
-def rl_rob_check_version(SHA):
-    out = subprocess.check_output(["git","-C",".","log","-1","--oneline"], text=True).strip()
-    print("you are on the latest version" if out.startswith(SHA) else f"you are not on the forzen version: {out}")
-
