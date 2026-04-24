@@ -576,6 +576,35 @@ class nnActor_Critic(nnPG):
         self.wϴ.fit(s, a, Gt,  γt=self.γt)
         # self.γt *= self.γ  # dropped to promote stability
 
+# for debugging==================================================================================
+class nnActor_Critic_debug(nnPG):
+    
+    def step0(self):
+        self.γt = 1    
+
+    def online(self, *args):
+        s, a, rn, sn, done = self.trajectory(-1)
+        
+        Vn, *_ = self.wϴ(sn)
+        Vn = Vn.squeeze(-1).detach() 
+        Vn[done] = 0
+        
+        Gt = self.γ * Vn + rn.squeeze(-1) 
+
+        if self.t_ % 200 == 0:
+            with torch.no_grad():
+                V_s, π_s = self.wϴ(s)
+                w = self.wϴ.head2.weight
+                g = w.grad.abs().mean().item() if w.grad is not None else 0.0
+                print(f"t={self.t_:>6} ep={self.ep:>3} "
+                      f"π={π_s.numpy().squeeze().round(3)} "
+                      f"V={V_s.item():+.3f} "
+                      f"|w|={w.abs().mean().item():.3e} "
+                      f"|g|={g:.3e} "
+                      f"adv={(Gt-V_s.squeeze()).item():+.3f}")
+
+        self.wϴ.fit(s, a, Gt, γt=self.γt)
+        # self.γt *= self.γ
 # ===============================================================================================        
 def AC(base=nnPG, name='nnActor_Critic'):
     class nnActor_Critic_(base):
