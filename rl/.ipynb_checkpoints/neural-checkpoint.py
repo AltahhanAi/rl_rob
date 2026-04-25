@@ -28,9 +28,9 @@ class nnMRP(MRP):
                  action_dtype=torch.int64,
                  model_summary=True,
                  model_class=nnModel, # which type of neural network model from nn.py to create
-                 clipCNN=False,
-                 clipModel=False,
-                 β_entropy=0.003,
+                 clipCNN=True,
+                 clipModel=None,
+                 β_entropy=0.01,
                  optimiser=None,
                  trunk_aF=F.relu,
                  **kw):
@@ -62,9 +62,9 @@ class nnMRP(MRP):
         self.t_ = 0
         self.β_entropy = β_entropy
         
-        # clipCNN is redundant and can be replaced by clipModel
-        self.clipModel = clipModel 
+        # clipCNN is redundant and can be replaced by a simple assignment: self.clipModel = clipModel
         self.clipCNN = clipCNN # kept for compatibility, should be removed later
+        self.clipModel = clipModel if clipModel is not None else clipCNN
         self.optimiser = optimiser # must be done before create_model
         
         self.w  = self.create_model('V',  self.model_class) if create_w  else None
@@ -101,7 +101,7 @@ class nnMRP(MRP):
             τ=getattr(self, 'τ', 1.0),
             β_entropy=getattr(self, 'β_entropy', 0.003),
             net_str=net_str, final_bias=self.final_bias,
-            clipModel=self.clipModel or self.clipCNN,
+            clipModel=self.clipModel,
             optimiser=self.optimiser,
         )
         if self.model_summary: model.print_model_summary(net_str)
