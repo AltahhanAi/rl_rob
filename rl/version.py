@@ -17,4 +17,4 @@ def check_version(SHA):
     if local.startswith(SHA):
         print("you are on the frozen version ✓")
     else:
-        print(f"you are NOT on the frozen version (you're on {local[:7]}, expected {SHA[:7]})")
+        print(f"you are not on the frozen version (you're on {local[:7]}, expected {SHA[:7]})")
