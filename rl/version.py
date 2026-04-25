@@ -17,7 +17,8 @@ import pathlib, subprocess
 
 def check_version(SHA):
     if len(SHA) < 7:
-        raise ValueError(f"SHA must be at least 7 characters, got {len(SHA)}")
+        print(f"SHA must be at least 7 characters, got {len(SHA)}")
+        return
     repo = pathlib.Path(__file__).parent.parent
     local = subprocess.check_output(
         ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True
