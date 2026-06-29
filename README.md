@@ -14,6 +14,7 @@
 - **Readable from first principles.** Written from scratch in `numpy`/`matplotlib`, so you can read the actual update, not a framework wrapper around it.
 - **A complete curriculum, not a grab-bag.** The algorithms follow the Sutton & Barto progression and ship with worked tutorials and learning outcomes.
 - **Built-in experiment and plotting harness.** `.interact()` runs the agent and returns learning curves, value maps, and trajectory views with no extra plumbing.
+- **Watch it learn, in the notebook.** Every gridworld and Gym environment ships with a visual/animation mode, so you see the agent moving through the environment as it trains, no external renderer or video export needed.
 
 ---
 
@@ -41,6 +42,19 @@ dqn = DQN(env=imaze(reward='sparse'), α=1e-4, γ=.98, episodes=30,
 ```
 
 Switching algorithm is a single token: swap `DQN` for `DDQN`, `nnSarsa`, or `nnQlearn`, keep everything else.
+
+## Watch it learn
+
+Visualisation and animation are built in, not bolted on. Both the gridworld environments and the Gym environments have a training/visual mode that renders the agent moving through the environment, inline in the notebook, while it learns. You turn it on through the demo config you pass to `.interact()`:
+
+```python
+demoGym = {'plotT': True, 'plotR': True, 'visual': True, 'animate': True}
+
+vsarsa = vSarsa(env=vGymDiscreteS(**MountainCar), α=.1, ε=0,
+                episodes=500, seed=1, **demoGym).interact()
+```
+
+`visual` draws the environment and the agent's position; `animate` plays the agent's movement across the episode; `plotT` and `plotR` add the steps-per-episode and return curves alongside. The same flags work for the gridworlds (`grid`, `maze`, `cliffwalk`, ...) and the Gym tasks, so you can literally watch the policy improve rather than only reading it off a learning curve.
 
 ---
 
@@ -96,11 +110,13 @@ Neural policy-gradient control reaching the goal and stabilising its return:
 
 ## Examples
 
-A few minimal, self-contained runs live in [`examples/`](examples/) so you can see the library working without any course material:
+A few minimal, self-contained runs live in [`examples/`](examples/) so you can see the library working without any course material. Each comes as a runnable script and a notebook you can open in Colab with one click:
 
-- `examples/sarsa_gridworld.py`: tabular Sarsa on a gridworld
-- `examples/tilecoded_mountaincar.py`: linear control with tile coding
-- `examples/dqn_maze.py`: deep value-based control on a sparse-reward maze
+| Example | Script | Notebook |
+|---------|--------|----------|
+| Tabular Sarsa on a gridworld | [`sarsa_gridworld.py`](examples/sarsa_gridworld.py) | [notebook](examples/notebooks/sarsa_gridworld.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<you>/rl_rob/blob/main/examples/notebooks/sarsa_gridworld.ipynb) |
+| Linear control on Mountain Car | [`tilecoded_mountaincar.py`](examples/tilecoded_mountaincar.py) | [notebook](examples/notebooks/tilecoded_mountaincar.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<you>/rl_rob/blob/main/examples/notebooks/tilecoded_mountaincar.ipynb) |
+| Deep Q-Network on a maze | [`dqn_maze.py`](examples/dqn_maze.py) | [notebook](examples/notebooks/dqn_maze.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<you>/rl_rob/blob/main/examples/notebooks/dqn_maze.ipynb) |
 
 These are intentionally tiny. They are the library's own demos, separate from the teaching worksheets below.
 
