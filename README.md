@@ -114,9 +114,9 @@ A few minimal, self-contained runs live in [`examples/`](examples/) so you can s
 
 | Example | Script | Notebook |
 |---------|--------|----------|
-| Tabular Sarsa on a gridworld | [`sarsa_gridworld.py`](examples/sarsa_gridworld.py) | [notebook](examples/notebooks/sarsa_gridworld.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<you>/rl_rob/blob/main/examples/notebooks/sarsa_gridworld.ipynb) |
-| Linear control on Mountain Car | [`tilecoded_mountaincar.py`](examples/tilecoded_mountaincar.py) | [notebook](examples/notebooks/tilecoded_mountaincar.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<you>/rl_rob/blob/main/examples/notebooks/tilecoded_mountaincar.ipynb) |
-| Deep Q-Network on a maze | [`dqn_maze.py`](examples/dqn_maze.py) | [notebook](examples/notebooks/dqn_maze.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/<you>/rl_rob/blob/main/examples/notebooks/dqn_maze.ipynb) |
+| Tabular Sarsa on a gridworld | [`sarsa_gridworld.py`](examples/sarsa_gridworld.py) | [notebook](examples/notebooks/sarsa_gridworld.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AltahhanAi/rl_rob/blob/main/examples/notebooks/sarsa_gridworld.ipynb) |
+| Linear control on Mountain Car | [`tilecoded_mountaincar.py`](examples/tilecoded_mountaincar.py) | [notebook](examples/notebooks/tilecoded_mountaincar.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AltahhanAi/rl_rob/blob/main/examples/notebooks/tilecoded_mountaincar.ipynb) |
+| Deep Q-Network on a maze | [`dqn_maze.py`](examples/dqn_maze.py) | [notebook](examples/notebooks/dqn_maze.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/AltahhanAi/rl_rob/blob/main/examples/notebooks/dqn_maze.ipynb) |
 
 These are intentionally tiny. They are the library's own demos, separate from the teaching worksheets below.
 
