@@ -234,7 +234,7 @@ class nnModel(nn.Module):
         print("╰───────────────────────────────────────────────────────────────────────────────────────╯")
         print(f"Total parameters: {total_params:,} of which {bias_params:,} are bias")
 
-# ==================== Split head models for Dueling and Actor-Critic ===========================
+# ==================== Split head models for Duelling and Actor-Critic ===========================
 
 class nnSplitModel(nnModel):
     def __init__(self, head1_dim, head2_dim, trunk_aF=F.elu, τ=1.0, **kw):
