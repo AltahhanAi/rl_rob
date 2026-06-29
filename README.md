@@ -58,19 +58,39 @@ State representation utilities (`env.gym.discretised`, `env.gym.tiled`) provide 
 
 ## Results gallery
 
-Tabular Sarsa learning to reach the goal on a gridworld (trajectory + steps-per-episode):
+Every figure below is produced directly by `.interact()`; no extra plotting code.
 
-![Tabular TD control](docs/img/tabular_td.png)
+**Tabular methods**
 
-Policy-gradient control under linear function approximation on a continuous task (return curve climbing as the policy improves):
+Sarsa learning to reach the goal on a gridworld (trajectory, then steps per episode):
+
+![Tabular Sarsa](docs/img/tabular_td.png)
+
+Dyna-Q planning on a large maze: the learned policy (left) and how planning collapses steps-to-goal within a handful of episodes (right):
+
+![Dyna-Q planning](docs/img/planning_dynaq.png)
+
+**Linear function approximation**
+
+Eligibility traces: TD(λ) RMS error against the step size α for a range of λ, recovering the classic bias/variance trade-off (and true-online TD(λ) on the right):
+
+![TD(lambda) RMS error](docs/img/linear_traces.png)
+
+Policy-gradient control on a continuous task: the return curve climbs as the policy improves:
 
 ![Linear policy gradient](docs/img/linear_policy_gradient.png)
 
-Deep value-based control on a sparse-reward maze over 100 episodes (steps and return per episode):
+**Neural function approximation**
 
-![Neural control](docs/img/neural_dqn_ddqn.png)
+Deep value-based control (DQN) on a sparse-reward maze over 100 episodes (steps and return per episode):
 
-*(Swap these for your own preferred hero figures; they are pulled straight from the worksheets.)*
+![Neural value-based control](docs/img/neural_dqn_ddqn.png)
+
+Neural policy-gradient control reaching the goal and stabilising its return:
+
+![Neural policy gradient](docs/img/neural_policy_gradient.png)
+
+*(All pulled straight from the worksheets; swap in your own preferred runs at any time.)*
 
 ---
 
