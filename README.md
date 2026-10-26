@@ -2,16 +2,16 @@
 
 **A from-scratch reinforcement learning library for learning how the algorithms actually work.**
 
-`rl_rob` implements the full arc of modern RL, from tabular temporal-difference methods to deep policy-gradient control, using nothing but standard Python (`numpy`, `matplotlib`). No PyTorch black boxes, no framework indirection: every update rule is visible and every algorithm reduces to the same one-line call. It is built for insight first, and has been used to teach reinforcement learning to several hundred postgraduate students.
+`rl_rob` implements the full arc of modern RL, from tabular temporal-difference methods to deep policy-gradient control. The tabular and linear stages are written in plain `numpy`; the neural stage uses PyTorch only for network layers and gradients, while every RL update (TD targets, replay, eligibility traces, policy gradients) is written out explicitly. No framework indirection: every update rule is visible and every algorithm reduces to the same one-line call. It is built for insight first, and has been used to teach reinforcement learning to several hundred postgraduate students.
 
-> Author: Abdulrahman Altahhan. The code is provided for teaching and study. Permission from the author is required for research, commercial, or other reuse (see [Licence](#licence)).
+> Author: Abdulrahman Altahhan, University of Leeds. Released under the [GNU AGPL-3.0](LICENSE).
 
 ---
 
 ## Why rl_rob
 
 - **One consistent API across every method.** Tabular, linear, and neural algorithms share the same declarative form, so moving from Q-learning to DQN is a one-word change, not a rewrite.
-- **Readable from first principles.** Written from scratch in `numpy`/`matplotlib`, so you can read the actual update, not a framework wrapper around it.
+- **Readable from first principles.** Written from scratch, so you can read the actual update, not a framework wrapper around it.
 - **A complete curriculum, not a grab-bag.** The algorithms follow the Sutton & Barto progression and ship with worked tutorials and learning outcomes.
 - **Built-in experiment and plotting harness.** `.interact()` runs the agent and returns learning curves, value maps, and trajectory views with no extra plumbing.
 - **Watch it learn, in the notebook.** Every gridworld and Gym environment ships with a visual/animation mode, so you see the agent moving through the environment as it trains, no external renderer or video export needed.
@@ -62,7 +62,7 @@ vsarsa = vSarsa(env=vGymDiscreteS(**MountainCar), α=.1, ε=0,
 
 | Stage | Module | Algorithms | Environments |
 |-------|--------|-----------|--------------|
-| Tabular | `rl.tabular`, `rl.rl` | TD(0), MC, Sarsa, Q-learning, n-step Sarsa, Dyna-Q, Prioritised Sweeping | random walk, gridworld, mazes, windy grid, cliffwalk |
+| Tabular | `rl.tabular`, `rl.dp` | TD(0), MC, Sarsa, Q-learning, n-step Sarsa, Dyna-Q, Prioritised Sweeping | random walk, gridworld, mazes, windy grid, cliffwalk |
 | Linear approximation | `rl.linear` | MC control, Sarsa, Q-learning, n-step Sarsa, eligibility traces (TD(λ), Sarsa(λ)), REINFORCE, actor-critic | Mountain Car, Acrobot, Pendulum, CartPole (with tile coding & discretisation) |
 | Neural / nonlinear | `rl.neural` | nnMCC, nnSarsa, nnQlearn, DQN, DDQN, nnTD(λ), nnSarsa(λ), REINFORCE, actor-critic, PPO | sparse-reward mazes and continuous control |
 
@@ -104,7 +104,6 @@ Neural policy-gradient control reaching the goal and stabilising its return:
 
 ![Neural policy gradient](docs/img/neural_policy_gradient.png)
 
-*(All pulled straight from the worksheets; swap in your own preferred runs at any time.)*
 
 ---
 
@@ -122,7 +121,7 @@ These are intentionally tiny. They are the library's own demos, separate from th
 
 ## Tutorials (full curriculum)
 
-A progressive set of Jupyter worksheets takes you from one-step TD to PPO, each with explicit learning outcomes. The worksheets live in the companion **RL Module** book (built with Jupyter Book) and install `rl_rob` as a dependency. They are linked here, not bundled into this repo, so the library stays standalone.
+A progressive set of Jupyter worksheets takes you from one-step TD to PPO, each with explicit learning outcomes. The worksheets belong to the Reinforcement Learning module of the online MSc in Artificial Intelligence at the University of Leeds and install `rl_rob` as a dependency; they are kept separate so the library stays standalone. The library itself is fully usable without them, through the examples above.
 
 | # | Worksheet | Focus |
 |---|-----------|-------|
@@ -138,27 +137,52 @@ A progressive set of Jupyter worksheets takes you from one-step TD to PPO, each 
 | 5.3 | Neural Eligibility Traces | nnTD(λ), nnSarsa(λ), credit assignment |
 | 5.4 | Neural Policy Gradient | REINFORCE, n-step actor-critic, GAE, PPO |
 
-> Replace the worksheet names with links to the published book pages once the RL Module site is live. Keep the dependency one-way: the book installs `rl_rob`, never the reverse.
 
 ---
 
 ## Installation
 
+`rl_rob` needs Python 3.9 or later.
+
 ```bash
-git clone <your-repo-url> rl_rob
-cd rl_rob
-pip install -r requirements.txt   # numpy, matplotlib, gymnasium, ...
+pip install git+https://github.com/AltahhanAi/rl_rob.git
 ```
 
-Then from a notebook or script:
+or, to work on the code and run the examples:
+
+```bash
+git clone https://github.com/AltahhanAi/rl_rob.git
+cd rl_rob
+pip install -e ".[test]"
+```
+
+This installs the dependencies (`numpy`, `matplotlib`, `gymnasium`, `minigrid`, `torch`, `tqdm`, `ipython`, `opencv-python-headless`, `scikit-learn`). Then, from a notebook or script:
 
 ```python
-%cd ~/rl_rob
 from rl.tabular import *
+from env.grid.tabular import *
 ```
+
+The optional Gazebo robot environments in `env/gazebo` additionally need ROS 2 (`rclpy`), which is installed separately and is not required for the rest of the library.
+
+## Running the tests
+
+```bash
+pytest
+```
+
+The tests train a short run of each stage (tabular, linear and neural) and run automatically on every push through GitHub Actions.
 
 ---
 
+## Contributing and support
+
+Questions, bug reports and suggestions are welcome as [GitHub issues](https://github.com/AltahhanAi/rl_rob/issues). See [CONTRIBUTING.md](CONTRIBUTING.md) for how to propose changes.
+
+## Citation
+
+If you use `rl_rob` in your teaching or research, please cite it using the metadata in [CITATION.cff](CITATION.cff).
+
 ## Licence
 
-This library is shared for teaching and personal study. Use for research, commercial, or other purposes requires the author's permission. Please contact the author before redistributing or building on the code.
+`rl_rob` is released under the [GNU Affero General Public License v3.0](LICENSE). You are free to use, study, modify and share it under those terms, including for teaching. For commercial use outside the AGPL, such as including rl_rob in closed-source products or services, contact the author for a commercial licence.

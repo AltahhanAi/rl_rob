@@ -4,10 +4,41 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rl_rob"
-version = "0.1.0"
-description = "RL and robotics library"
-requires-python = ">=3.8"
-dependencies = []
+version = "1.0.0"
+description = "A transparent, from-scratch reinforcement learning library for teaching, from tabular methods to deep policy gradients"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "Abdulrahman Altahhan"}]
+requires-python = ">=3.9"
+keywords = ["reinforcement learning", "education", "teaching", "machine learning"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "ipython",
+    "tqdm",
+    "gymnasium",
+    "minigrid",
+    "torch",
+    "opencv-python-headless",
+    "scikit-learn",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/AltahhanAi/rl_rob"
+Issues = "https://github.com/AltahhanAi/rl_rob/issues"
 
 [tool.setuptools.packages.find]
 include = ["env*", "rl*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
