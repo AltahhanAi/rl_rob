@@ -2,7 +2,7 @@
 Abdulrahman Altahhan (c) 2026
 Version: 3.8
 Educational code for teaching RL (DQN and related methods).
-Permission required for redistribution or research/commercial use.
+Released under the GNU AGPL-3.0 (see LICENSE); commercial licences available from the author.
 '''
 from rl.linear import *
 from rl.nn import *
